@@ -1,5 +1,13 @@
 # CHENG ERP development
 
+## Working location
+
+- The owner requests that future implementation run in Codex Cloud against `kaukuai/ERP`, with the repository as the shared source of truth. Read `docs/CLOUD_HANDOFF.md` before continuing.
+- Do not depend on the original Windows machine, its local checkout paths, company database, credentials, or backups. Use an isolated cloud checkout and generated test/demo data.
+- Confirm the actual execution environment before reporting a migration as completed. GitHub uploads, remote CI, ChatGPT Work, and Codespaces configuration alone do not prove that a Codex coding task is running in a published cloud environment.
+
+## Project rules
+
 - Runtime: Node.js 24; ES modules; SQLite through `node:sqlite`. No npm runtime dependencies. The vendored bwip-js files must remain accompanied by their notices.
 - Run `npm run verify` before handing off code. The suite uses independent in-memory or temporary databases. Never run experiments against `data/company.sqlite`.
 - `npm run dev` launches the fictional demo. `npm run dev:company` launches the current development environment's company database. `npm start` and `npm run demo` retain the standard server entry points.
