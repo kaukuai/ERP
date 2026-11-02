@@ -112,4 +112,3 @@ node --test tests/core.test.mjs tests/trading.test.mjs tests/finance.test.mjs te
 亦可執行 `npm test`。HTTP 測試自行建立暫存資料庫、啟動本機服務並在結束後清理；不使用 `data/company.sqlite`。
 
 `src/` 是伺服器與交易核心，`public/` 是瀏覽器介面，`tests/` 是自動驗證，`docs/` 是研究與交付文件，`data/` 存放執行時資料。資料庫與備份含公司資料及登入資訊，應由公司管理保存，不加入原始碼版本庫。
-

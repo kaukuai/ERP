@@ -1,0 +1,11 @@
+{
+  "name": "CHENG ERP · Node 24",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
+  "remoteUser": "node",
+  "forwardPorts": [4320, 4321],
+  "portsAttributes": {
+    "4320": { "label": "ERP company development", "onAutoForward": "notify" },
+    "4321": { "label": "ERP fictional demo", "onAutoForward": "notify" }
+  },
+  "postCreateCommand": "npm run verify"
+}

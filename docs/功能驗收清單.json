@@ -1,0 +1,1175 @@
+{
+  "source": {
+    "title": "數碼一號－進銷存系統操作手冊",
+    "pages": 418,
+    "url": "https://www.hotzsoft.com/Data/S2021030001-X8QRZDSV/file/%E6%95%B8%E7%A2%BC%E4%B8%80%E8%99%9F-%E9%80%B2%E9%8A%B7%E5%AD%98%E7%B3%BB%E7%B5%B1%E6%93%8D%E4%BD%9C%E6%89%8B%E5%86%8A.pdf",
+    "reference": "https://www.scribd.com/document/982017657/數碼一號-進銷存系統操作手冊",
+    "note": "頁碼以原廠公開 PDF 為準。比對功能行為；不複製廠商程式、版面或操作文字。"
+  },
+  "version": "0.3.0",
+  "statusLabels": {
+    "usable": "可操作（依驗收範圍）",
+    "partial": "部分具備",
+    "missing": "待建置",
+    "external": "需外部整合"
+  },
+  "summary": {
+    "usable": 51,
+    "partial": 30,
+    "missing": 20,
+    "external": 14
+  },
+  "rows": [
+    {
+      "id": "B01",
+      "group": "基本資料",
+      "name": "公司資料與交易稅率",
+      "pages": "3–5",
+      "status": "usable",
+      "acceptance": "可儲存公司抬頭、聯絡資料、預設稅率，既有單據保留交易快照。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B02",
+      "group": "基本資料",
+      "name": "多公司／分店獨立帳套",
+      "pages": "4、60–62",
+      "status": "missing",
+      "acceptance": "各分店有抬頭、預設倉庫、權限與獨立帳套，可受控彙總。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B03",
+      "group": "基本資料",
+      "name": "數量金額精度及輸入順序",
+      "pages": "6",
+      "status": "partial",
+      "acceptance": "目前數量三位、金額二位；需可設定顯示及輸入順序。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B04",
+      "group": "基本資料",
+      "name": "單號規則管理",
+      "pages": "7–8",
+      "status": "usable",
+      "acceptance": "可設定前綴、分店碼、日／月／年／連續分期及補零位數；保留舊單號並跳過已使用號碼。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B05",
+      "group": "基本資料",
+      "name": "備份與復原",
+      "pages": "9–10",
+      "status": "partial",
+      "acceptance": "線上備份與還原驗證已有；尚缺排程、留存輪替、異機災難復原演練。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B06",
+      "group": "基本資料",
+      "name": "客戶廠商主檔",
+      "pages": "12–14、27–30",
+      "status": "usable",
+      "acceptance": "自訂代號、聯絡資訊、負責業務、信用額度與付款條件。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B07",
+      "group": "基本資料",
+      "name": "多聯絡人與主聯絡人",
+      "pages": "21、33",
+      "status": "usable",
+      "acceptance": "同一往來對象可新增及修改多位聯絡人，只能有一位主要聯絡人。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B08",
+      "group": "基本資料",
+      "name": "多送貨地址",
+      "pages": "14、107",
+      "status": "usable",
+      "acceptance": "每一客戶可維護多個送貨地址及主要地址；訂單可選址。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B09",
+      "group": "基本資料",
+      "name": "月結與截止日",
+      "pages": "13、28、302–307",
+      "status": "usable",
+      "acceptance": "支援交易日起算、月底或指定截止日，再加付款天數；逐筆保留到期日。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B10",
+      "group": "基本資料",
+      "name": "單筆／批次立帳政策",
+      "pages": "13、28、302–307、329–334",
+      "status": "partial",
+      "acceptance": "已有逐次出入庫即立帳；尚無月結後將多筆出貨合成一張應收的遞延立帳模式。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B11",
+      "group": "基本資料",
+      "name": "標準零售批發網路與上次價格",
+      "pages": "13、39–41",
+      "status": "usable",
+      "acceptance": "客戶政策帶價，專屬價優先，上次價取最近核准訂單，業務可修改草稿價格。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B12",
+      "group": "基本資料",
+      "name": "客戶與廠商交易歷史",
+      "pages": "20、32",
+      "status": "partial",
+      "acceptance": "可查單據與往來；尚缺完整跨模組歷史樹與逐欄報表。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B13",
+      "group": "基本資料",
+      "name": "Excel 匯入欄位映射範本",
+      "pages": "15–19、30–31、42–45",
+      "status": "partial",
+      "acceptance": "已有固定欄位 CSV 預覽及原子匯入；需 XLSX 與可保存欄位映射。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B14",
+      "group": "基本資料",
+      "name": "代號更名與帳款重建",
+      "pages": "22–24、34–35",
+      "status": "usable",
+      "acceptance": "代號以穩定 ID 關聯；可預覽庫存／帳款來源差異，管理員核對後自動備份、驗證快照與總帳，再原子重建並留痕。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B15",
+      "group": "基本資料",
+      "name": "客戶業務追蹤",
+      "pages": "25",
+      "status": "usable",
+      "acceptance": "可記錄負責業務、聯繫內容及下次聯繫日期。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B16",
+      "group": "基本資料",
+      "name": "期初應收應付",
+      "pages": "26、37",
+      "status": "usable",
+      "acceptance": "可輸入來源參考、未結金額與到期日，對應總帳且可後續沖帳。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B17",
+      "group": "基本資料",
+      "name": "期初預收預付",
+      "pages": "26、37",
+      "status": "partial",
+      "acceptance": "已有實際收付款建立預收付；歷史期初預收付對期初權益尚待專用流程。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B18",
+      "group": "基本資料",
+      "name": "商品分類規格條碼",
+      "pages": "38–45",
+      "status": "partial",
+      "acceptance": "已含品號、規格、條碼、發票品名、圖片與分類快照；多層分類及自訂欄位仍待建置。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B19",
+      "group": "基本資料",
+      "name": "非庫存商品與服務",
+      "pages": "38–39",
+      "status": "usable",
+      "acceptance": "服務／運費可進報價、訂單及採購，不預留或異動實體庫存；進貨記費用，退貨回沖對應帳務。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B20",
+      "group": "基本資料",
+      "name": "商品標籤與條碼列印",
+      "pages": "46–49",
+      "status": "usable",
+      "acceptance": "支援 Code 128／EAN-13／QR，A4／A5／連續紙及自訂尺寸、數量；每單位可有條碼，實機紙張及掃描器仍需驗收。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B21",
+      "group": "基本資料",
+      "name": "商品圖片管理",
+      "pages": "50–52",
+      "status": "usable",
+      "acceptance": "管理員可上傳 PNG／JPEG／WebP，驗證格式及大小，登入後才能讀取，商品圖及選品顯示。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B22",
+      "group": "基本資料",
+      "name": "組合品拆組",
+      "pages": "53–56",
+      "status": "partial",
+      "acceptance": "有 BOM 與一次完工組裝核心；尚缺拆解、組合銷售及對應操作介面。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B23",
+      "group": "基本資料",
+      "name": "單位字典及多單位換算",
+      "pages": "57–59",
+      "status": "usable",
+      "acceptance": "基本單位與箱／包等換算比例、各單位條碼及售採購價可維護；單據凍結換算、帶價，進出退及採購以基本量核對。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B24",
+      "group": "基本資料",
+      "name": "可擴充倉庫",
+      "pages": "63–65",
+      "status": "usable",
+      "acceptance": "使用者可新增倉庫並查詢分倉現存、預留及可用量。",
+      "evidence": "trading.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B25",
+      "group": "基本資料",
+      "name": "部門與員工到離職",
+      "pages": "66–69",
+      "status": "usable",
+      "acceptance": "可新增部門及員工、維護到離職日期；不取代登入帳號權限。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B26",
+      "group": "基本資料",
+      "name": "登入與帳號管理",
+      "pages": "70–72",
+      "status": "usable",
+      "acceptance": "密碼雜湊、停用、變更角色後撤銷連線，至少保留一位管理員。",
+      "evidence": "http.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B27",
+      "group": "基本資料",
+      "name": "按鈕／欄位／資料類別權限",
+      "pages": "73–78",
+      "status": "partial",
+      "acceptance": "已有六角色及成本遮蔽、業務資料隔離；尚無自訂角色與逐欄、逐鈕授權。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B28",
+      "group": "基本資料",
+      "name": "自訂報表設計與列印權限",
+      "pages": "77–78",
+      "status": "missing",
+      "acceptance": "能管理版型、查詢欄位及報表可見／列印權限。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "B29",
+      "group": "基本資料",
+      "name": "費用類別及資金帳戶",
+      "pages": "79–81",
+      "status": "usable",
+      "acceptance": "自訂費用類別、銀行／現金帳戶與期初金額，各帳戶有獨立總帳餘額。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "B30",
+      "group": "基本資料",
+      "name": "銀行分行代碼字典",
+      "pages": "80、362–363",
+      "status": "usable",
+      "acceptance": "可維護銀行／分行唯一代碼，資金帳戶連結該分行，供票據及票簿使用。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "P01",
+      "group": "採購",
+      "name": "採購單與歷史查詢",
+      "pages": "82–88",
+      "status": "usable",
+      "acceptance": "可草稿、送審、核准、列印採購及查詢狀態。",
+      "evidence": "trading.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "P02",
+      "group": "採購",
+      "name": "多筆商品選取及安全存量採購",
+      "pages": "86–87",
+      "status": "partial",
+      "acceptance": "有安全存量淨額建議及訂單轉採購；需多列批次選取與補貨策略。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "P03",
+      "group": "採購",
+      "name": "採購分批入庫",
+      "pages": "89–95",
+      "status": "usable",
+      "acceptance": "支援部分到貨、餘量防超收、入庫成本與應付同步。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "P04",
+      "group": "採購",
+      "name": "無採購單直接進貨",
+      "pages": "90",
+      "status": "usable",
+      "acceptance": "不需事先建採購單，主管可一次建立可追溯來源、核准並入庫立帳，任一步失敗整批回滾。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "P05",
+      "group": "採購",
+      "name": "多採購單合併進貨",
+      "pages": "91",
+      "status": "missing",
+      "acceptance": "同供應商多筆採購可合併進貨且保留來源明細。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "P06",
+      "group": "採購",
+      "name": "進貨退出",
+      "pages": "96–100",
+      "status": "usable",
+      "acceptance": "依原入庫可退量退出，正確回沖成本並記錄成本差異。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "P07",
+      "group": "採購",
+      "name": "進貨金額折讓",
+      "pages": "96–100",
+      "status": "partial",
+      "acceptance": "已有不動庫存的金額折讓及待退款；尚缺含折讓後再退貨的逐列分攤與成本分攤政策。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "P08",
+      "group": "採購",
+      "name": "採購單據關聯追溯",
+      "pages": "92–95",
+      "status": "partial",
+      "acceptance": "可追訂單、採購、到貨、退貨與付款；需完整關聯樹。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "P09",
+      "group": "採購",
+      "name": "採購明細／排行／年度分析",
+      "pages": "101–104",
+      "status": "usable",
+      "acceptance": "可查進貨／退出／折讓明細，依日期、廠商、商品、分類、業務、部門及月份彙總排行與匯出；未保存的歷史分類列未分類。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S01",
+      "group": "銷售",
+      "name": "業務報價及訂單黃單",
+      "pages": "105–108",
+      "status": "usable",
+      "acceptance": "業務可查詢、編輯草稿、報價轉單並列印 A4／A5 黃單。",
+      "evidence": "http.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S02",
+      "group": "銷售",
+      "name": "訂閱分期排程",
+      "pages": "109–112",
+      "status": "missing",
+      "acceptance": "訂單按期數拆出貨日期，可跳期、調整、暫停及追溯。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "S03",
+      "group": "銷售",
+      "name": "訂單外部／發票欄位",
+      "pages": "113–114",
+      "status": "missing",
+      "acceptance": "存買受人載具、電商及物流資料，依權限保護。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "S04",
+      "group": "銷售",
+      "name": "訂單匯入範本與映射",
+      "pages": "119–123",
+      "status": "missing",
+      "acceptance": "可保存欄位映射並逐列驗證、預覽、去重及整批建立。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "S05",
+      "group": "銷售",
+      "name": "訂單部分出貨",
+      "pages": "124–128",
+      "status": "usable",
+      "acceptance": "出貨不得超過未交量，自動釋放本單預留並立帳。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S06",
+      "group": "銷售",
+      "name": "直接銷貨及前台銷售",
+      "pages": "124–126",
+      "status": "usable",
+      "acceptance": "具核准與庫存權限者可直接銷貨，信用、核准、出庫及立帳同筆交易並保留來源；完整 POS 另列 X10。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S07",
+      "group": "銷售",
+      "name": "多訂單合併出貨",
+      "pages": "127–128",
+      "status": "missing",
+      "acceptance": "同客戶多張訂單合併銷貨，逐列記錄來源與交貨量。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "S08",
+      "group": "銷售",
+      "name": "整單折扣分攤",
+      "pages": "129",
+      "status": "usable",
+      "acceptance": "整單價格折扣按各列含／未稅價格基礎分攤，稅額隨明細重算；分批交貨與退貨保留精確分攤及尾差。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S09",
+      "group": "銷售",
+      "name": "同單混合稅別",
+      "pages": "129",
+      "status": "usable",
+      "acceptance": "同張單可按列設定外加／含稅、稅率含零稅率或免稅；單據、交貨與退貨保存各列稅額，發票介接仍另列。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S10",
+      "group": "銷售",
+      "name": "出貨條碼比對",
+      "pages": "138–143",
+      "status": "usable",
+      "acceptance": "批次揀貨可用基本或換算單位條碼比對，多張來源逐列追溯；擋錯品、超量與重複掃描，全部核對後才能出貨。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S11",
+      "group": "銷售",
+      "name": "銷貨實物退回及已收款退貨",
+      "pages": "144–157",
+      "status": "usable",
+      "acceptance": "原出貨量控管；未結應收先扣、已收部分生成待退款，不直接假造銀行退款。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "S12",
+      "group": "銷售",
+      "name": "銷貨無實物折讓",
+      "pages": "147、152–157",
+      "status": "partial",
+      "acceptance": "可只減金額及稅額、不動庫存，產生待退款；折讓後再次實物退貨待逐列分攤。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "S13",
+      "group": "銷售",
+      "name": "銷貨毛利分析",
+      "pages": "161–163",
+      "status": "partial",
+      "acceptance": "有客戶／業務／月份收入成本；需扣除費用分攤及全維度毛利。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "S14",
+      "group": "銷售",
+      "name": "銷售詳細／排行／年度報表",
+      "pages": "158–172",
+      "status": "partial",
+      "acceptance": "已有客戶、商品、分類、業務、部門與月份彙總、排行及完整交易明細匯出；交叉矩陣及自訂報表仍待建置。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "S15",
+      "group": "銷售",
+      "name": "預收及退貨關聯歷史",
+      "pages": "115–118、130–137",
+      "status": "partial",
+      "acceptance": "預收可綁指定訂單並核對沖抵；需在單據頁完整呈現預收、發票及退貨關聯。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I01",
+      "group": "庫存",
+      "name": "總庫存與分倉查詢",
+      "pages": "173–186",
+      "status": "usable",
+      "acceptance": "現存、預留、可用量及異動金額與總帳一致。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "I02",
+      "group": "庫存",
+      "name": "非交易入庫及出庫單",
+      "pages": "187–194",
+      "status": "partial",
+      "acceptance": "已有具原因的庫存調整；需專用單據、草稿、審核及列印。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I03",
+      "group": "庫存",
+      "name": "倉庫調撥與列印",
+      "pages": "195–199",
+      "status": "partial",
+      "acceptance": "有原子調撥與成本保持；尚需調撥單列印及在途收發兩階段。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I04",
+      "group": "庫存",
+      "name": "批次揀貨單",
+      "pages": "200–208",
+      "status": "partial",
+      "acceptance": "已有同倉多訂單彙總揀貨、掃碼、列印及原子出貨回寫；尚需缺貨訂單的部分可配貨策略。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I05",
+      "group": "庫存",
+      "name": "盤點快照與差異過帳",
+      "pages": "209–221",
+      "status": "usable",
+      "acceptance": "實盤草稿不動庫存；主管過帳差異且擋下快照後異動。",
+      "evidence": "trading.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "I06",
+      "group": "庫存",
+      "name": "批次盤點／匯入／空白盤點表",
+      "pages": "209–221",
+      "status": "partial",
+      "acceptance": "已有實盤 CSV 預覽與分批儲存、空白盤點表及差異列印；XLSX、自訂欄位映射及分區批次策略待建置。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I07",
+      "group": "庫存",
+      "name": "盤點後異動調節",
+      "pages": "222–226",
+      "status": "partial",
+      "acceptance": "會阻擋快照過期；尚缺依盤點基準重算、差異預覽與受控重建。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I08",
+      "group": "庫存",
+      "name": "庫存帳重建",
+      "pages": "229–230",
+      "status": "usable",
+      "acceptance": "從不可覆寫流水重算數量、價值及訂單預留，先比差異、自動備份、管理員確認及總帳核對；錯誤整批回滾。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "I09",
+      "group": "庫存",
+      "name": "庫存成本月結及反月結",
+      "pages": "231–238",
+      "status": "partial",
+      "acceptance": "可設定單向截止日阻擋過帳；需模組月結、試算、重開及重結。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I10",
+      "group": "庫存",
+      "name": "月加權與標準成本",
+      "pages": "5、231–238、351–359",
+      "status": "partial",
+      "acceptance": "目前移動加權；尚無月加權／標準成本及重估差異報表。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I11",
+      "group": "庫存",
+      "name": "庫存異動與呆滯報表",
+      "pages": "239–248",
+      "status": "partial",
+      "acceptance": "已有異動流水、存貨價值；需任意歷史庫存、慢動與庫齡報表。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "I12",
+      "group": "庫存",
+      "name": "成本金額／單價調整及匯入",
+      "pages": "351–359",
+      "status": "partial",
+      "acceptance": "已能依總價或單價重估庫存、凍結預覽量值並過帳差異分錄；成本批次匯入尚待建置。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "E01",
+      "group": "發票",
+      "name": "開通及授權憑證",
+      "pages": "249–252",
+      "status": "external",
+      "acceptance": "需公司選定加值中心、憑證／API 與測試帳號，完成核准前不開正式票。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "E02",
+      "group": "發票",
+      "name": "字軌區間及空白號碼管理",
+      "pages": "253–259、287–299",
+      "status": "missing",
+      "acceptance": "匯入字軌、檢查重疊與使用狀態、作廢及空白未使用回報。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "E03",
+      "group": "發票",
+      "name": "發票列印設定及捐贈碼",
+      "pages": "260–263",
+      "status": "missing",
+      "acceptance": "列印設備、抬頭圖、捐贈及常用欄位有受控設定。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "E04",
+      "group": "發票",
+      "name": "B2B／B2C 開立及合併批開",
+      "pages": "264–278",
+      "status": "external",
+      "acceptance": "草稿驗證、單張／批次／合併開票及買受人資料，真實回執才算成功。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "E05",
+      "group": "發票",
+      "name": "作廢／折讓／取消折讓",
+      "pages": "279–289",
+      "status": "external",
+      "acceptance": "狀態依加值中心回執流轉，保留原憑證、關聯、核准及重試。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "E06",
+      "group": "發票",
+      "name": "載具捐贈及證明聯",
+      "pages": "264–286",
+      "status": "external",
+      "acceptance": "依目前財政部與加值中心規格驗證載具、捐贈及重印標記。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "E07",
+      "group": "發票",
+      "name": "上傳佇列／回執／重試",
+      "pages": "290–294",
+      "status": "external",
+      "acceptance": "佇列去重、失敗可重試、查回執及告警，避免重複開票。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "E08",
+      "group": "發票",
+      "name": "發票 TXT／CSV 匯入匯出",
+      "pages": "295–299",
+      "status": "missing",
+      "acceptance": "依當期規格驗證格式、筆數、金額與漏號並可預覽。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "F01",
+      "group": "帳款成本",
+      "name": "逐筆應收與應付",
+      "pages": "302–307、329–334",
+      "status": "usable",
+      "acceptance": "出入庫、退貨及收付共同維護未結子帳與控制科目。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "F02",
+      "group": "帳款成本",
+      "name": "真正批次月結立帳",
+      "pages": "302–307、329–334",
+      "status": "missing",
+      "acceptance": "批次型客戶先保留待立帳交易，月結時多筆合成一帳，避免重複計帳。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "F03",
+      "group": "帳款成本",
+      "name": "呆帳與沖回",
+      "pages": "304–305、333",
+      "status": "missing",
+      "acceptance": "審核呆帳損失、稅額及後續收回的關聯沖轉。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "F04",
+      "group": "帳款成本",
+      "name": "多筆帳款批次沖帳",
+      "pages": "308–313、335–340",
+      "status": "usable",
+      "acceptance": "同一往來與方向，總收付款等於分配合計；任一錯誤整批回滾。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "F05",
+      "group": "帳款成本",
+      "name": "多方式與費用混合沖帳",
+      "pages": "308–313、335–340",
+      "status": "partial",
+      "acceptance": "有單帳戶批次沖帳；需同張混合現金／銀行／票據、手續費及轉預收的平衡式。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "F06",
+      "group": "帳款成本",
+      "name": "指定／未指定訂單預收預付",
+      "pages": "314–320、341–343",
+      "status": "usable",
+      "acceptance": "可指定訂單限制沖抵，保留餘額、沖抵與退款歷史。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "F07",
+      "group": "帳款成本",
+      "name": "預收預付部分沖抵",
+      "pages": "314–320、341–343",
+      "status": "usable",
+      "acceptance": "相同對象及方向，分次沖抵不超過雙方餘額且不重複動銀行。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "F08",
+      "group": "帳款成本",
+      "name": "客戶及廠商退款",
+      "pages": "321–322、343",
+      "status": "usable",
+      "acceptance": "從預收付或退貨／折讓待退款分次記錄實際退款，帳戶及控制科目同步。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "F09",
+      "group": "帳款成本",
+      "name": "Excel 收款對帳",
+      "pages": "323–328",
+      "status": "missing",
+      "acceptance": "匯入對帳檔、辨識與去重、例外人工配對、預覽後才過帳。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "F10",
+      "group": "帳款成本",
+      "name": "費用分類與費用立帳付款",
+      "pages": "344–350",
+      "status": "usable",
+      "acceptance": "可建類別、含稅額費用及未付款，支援分次付款與費用子帳核對。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "F11",
+      "group": "帳款成本",
+      "name": "進貨及銷貨費用分攤",
+      "pages": "344–350",
+      "status": "missing",
+      "acceptance": "採購運費等按金額／數量分攤至原交易、庫存或已售成本並處理尾差。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "F12",
+      "group": "帳款成本",
+      "name": "資金帳戶轉帳",
+      "pages": "81、308–313",
+      "status": "usable",
+      "acceptance": "轉出入與分錄同筆交易，現金不足阻擋；僅記帳不連線銀行。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "F13",
+      "group": "帳款成本",
+      "name": "收付款沖銷留痕",
+      "pages": "308–343",
+      "status": "partial",
+      "acceptance": "無退貨／折讓的收付款可反向分錄與恢復未結；有後續退款須另行核對，不可刪紀錄。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "F14",
+      "group": "帳款成本",
+      "name": "帳齡及對帳單",
+      "pages": "302–343",
+      "status": "partial",
+      "acceptance": "即時到期日帳齡已包含期初帳款；尚無任意歷史日重建及可寄送對帳單。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "T01",
+      "group": "票據",
+      "name": "應收票據登錄及沖帳",
+      "pages": "364–368",
+      "status": "usable",
+      "acceptance": "票號去重、同客戶分配帳款，轉為應收票據而非銀行存款。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "T02",
+      "group": "票據",
+      "name": "應收託收及兌現",
+      "pages": "369–370",
+      "status": "usable",
+      "acceptance": "收票→託收→到期兌現，僅兌現才記銀行，事件保留不可覆寫。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "T03",
+      "group": "票據",
+      "name": "應付票據及交付兌現",
+      "pages": "373–379",
+      "status": "usable",
+      "acceptance": "開票→交付→到期兌現，分配應付及獨立票據負債。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "T04",
+      "group": "票據",
+      "name": "退票與未兌現作廢",
+      "pages": "364–379",
+      "status": "usable",
+      "acceptance": "未兌現票可作廢或退票，恢復原應收付並阻擋重複執行。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "T05",
+      "group": "票據",
+      "name": "支票簿與號碼區間",
+      "pages": "371–372",
+      "status": "usable",
+      "acceptance": "可建銀行票簿起訖及補零規則、自動取下一可用號、空白票作廢與耗用追蹤；全域重複票號會阻擋。",
+      "evidence": "operations.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "T06",
+      "group": "票據",
+      "name": "背書轉讓／劃線／抬頭控制",
+      "pages": "373–376",
+      "status": "missing",
+      "acceptance": "票據可背書轉讓，限制狀態、對象及會計沖轉，追完整權利鏈。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "T07",
+      "group": "票據",
+      "name": "非帳款對象票據及撤銷連動",
+      "pages": "364–368、377–378",
+      "status": "missing",
+      "acceptance": "可對員工／其他對象票據，安全解除連動且保留更正歷史。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "C01",
+      "group": "電商與物流",
+      "name": "多商店授權與憑證管理",
+      "pages": "381–418",
+      "status": "external",
+      "acceptance": "需商店 API 權限；密鑰加密儲存、到期提醒、撤銷與角色隔離。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C02",
+      "group": "電商與物流",
+      "name": "ERP／平台 SKU 映射",
+      "pages": "382–393、398–401",
+      "status": "missing",
+      "acceptance": "SKU 及規格一對一核對、未映射例外佇列，不自動猜品號。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C03",
+      "group": "電商與物流",
+      "name": "分類與商品批次刊登",
+      "pages": "382–393",
+      "status": "external",
+      "acceptance": "商品分類、規格、圖片、價格對應平台，保留上傳結果及錯誤。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C04",
+      "group": "電商與物流",
+      "name": "Hotzbuy 訂單／出貨／發票同步",
+      "pages": "381–393",
+      "status": "external",
+      "acceptance": "去重下載、可預覽入單、回寫出貨及發票並保留同步紀錄。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C05",
+      "group": "電商與物流",
+      "name": "蝦皮授權及訂單匯入",
+      "pages": "394–404",
+      "status": "external",
+      "acceptance": "商店授權、倉庫及收款／物流映射，訂單防重入及失敗重試。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C06",
+      "group": "電商與物流",
+      "name": "Shopline 授權及訂單匯入",
+      "pages": "405–413",
+      "status": "external",
+      "acceptance": "商店 Token、商品映射、庫存與訂單同步，保持來源狀態。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C07",
+      "group": "電商與物流",
+      "name": "平台取消及異常重試",
+      "pages": "398–413",
+      "status": "external",
+      "acceptance": "取消不誤扣庫存，未映射 SKU 可修正重送，事件及冪等可查。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C08",
+      "group": "電商與物流",
+      "name": "庫存同步安全量",
+      "pages": "405–413",
+      "status": "external",
+      "acceptance": "依分倉可用量與安全量回傳平台，防負數與同步競爭超賣。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C09",
+      "group": "電商與物流",
+      "name": "物流單號與託運標籤",
+      "pages": "414–418",
+      "status": "external",
+      "acceptance": "選多筆訂單取得承運 API 單號、列印正確標籤、重試防重開。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "C10",
+      "group": "電商與物流",
+      "name": "其他平台及費用結算",
+      "pages": "原廠現行功能頁，非本手冊承諾範圍",
+      "status": "external",
+      "acceptance": "MOMO 等平台依官方可用 API 及實際合約逐項確認，不以現有清單假稱已串接。",
+      "evidence": "",
+      "priority": "P2 外部整合"
+    },
+    {
+      "id": "X01",
+      "group": "超越基準與公司需求",
+      "name": "交易原子性與重送防重複",
+      "pages": "本公司強化",
+      "status": "usable",
+      "acceptance": "多列庫存、會計及帳款同成同敗；相同請求不重複過帳。",
+      "evidence": "http.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "X02",
+      "group": "超越基準與公司需求",
+      "name": "並行修改防覆蓋",
+      "pages": "本公司強化",
+      "status": "usable",
+      "acceptance": "主檔、草稿及盤點以修訂號阻擋過期修改。",
+      "evidence": "trading.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "X03",
+      "group": "超越基準與公司需求",
+      "name": "不可覆寫流水與一致性檢查",
+      "pages": "本公司強化",
+      "status": "usable",
+      "acceptance": "核對存貨、預留、應收付、預收付、票據與費用子帳及借貸。",
+      "evidence": "finance.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "X04",
+      "group": "超越基準與公司需求",
+      "name": "20 人部署及維運",
+      "pages": "公司需求",
+      "status": "partial",
+      "acceptance": "尚須 HTTPS、伺服器與備份還原部署、多使用者負載及權限驗收；目前僅本機試行。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "X05",
+      "group": "超越基準與公司需求",
+      "name": "舊系統完整移轉驗收",
+      "pages": "公司需求",
+      "status": "partial",
+      "acceptance": "已有 CSV 主檔與庫存及手動期初帳款；尚缺真實資料映射、歷史搬遷與雙軌對帳。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "X06",
+      "group": "超越基準與公司需求",
+      "name": "操作異動稽核",
+      "pages": "本公司強化",
+      "status": "usable",
+      "acceptance": "所有過帳與主要主檔操作留操作者與時間，不可直接刪除稽核。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "X07",
+      "group": "超越基準與公司需求",
+      "name": "借出入及歸還",
+      "pages": "既有系統需求",
+      "status": "usable",
+      "acceptance": "可分次歸還、沿用借出成本、借入差異獨立入帳。",
+      "evidence": "core.test.mjs",
+      "priority": "驗收保持"
+    },
+    {
+      "id": "X08",
+      "group": "超越基準與公司需求",
+      "name": "批號效期序號及追溯",
+      "pages": "原廠現行功能頁擴充",
+      "status": "missing",
+      "acceptance": "入出庫可選批號／序號、到期及先到期先出並追溯退貨。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "X09",
+      "group": "超越基準與公司需求",
+      "name": "維修保固／寄售租賃",
+      "pages": "原廠現行功能頁擴充",
+      "status": "missing",
+      "acceptance": "各模組需獨立流程、資產／庫存及應收付規則與驗收。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    },
+    {
+      "id": "X10",
+      "group": "超越基準與公司需求",
+      "name": "完整 POS 促銷與會員",
+      "pages": "原廠現行功能頁擴充",
+      "status": "missing",
+      "acceptance": "跨門市會員、點數、促銷及硬體金流整合須獨立開發與實機驗證。",
+      "evidence": "",
+      "priority": "P1 核心補齊"
+    }
+  ],
+  "warning": "未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。"
+}

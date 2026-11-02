@@ -1,0 +1,17 @@
+data/
+*.sqlite*
+*.db*
+*.log
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+artifacts/
+
+.npm-cache/
+node_modules/
+coverage/
+.DS_Store
+Thumbs.db
