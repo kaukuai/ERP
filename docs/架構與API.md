@@ -1,6 +1,6 @@
 # 架構與 API
 
-基準：2026-11-02，核心試行版 v0.2.0；新增 API 及遷移見 [v0.2 操作與升級](v0.2操作與升級.md)。
+基準：2026-11-02，v0.4 多公司核心試行版。新增功能、遷移與限制見 [v0.4 操作與升級](v0.4操作與升級.md)，歷史流程另見 v0.2／v0.3 文件。
 
 ## 執行架構
 
@@ -38,7 +38,7 @@ flowchart LR
 
 同一使用者、同一冪等碼、同一角色及內容會取得原結果；內容或角色不同則衝突。資料庫也為單號與轉單來源設唯一限制。
 
-目前為一個 Node 程序及一個 SQLite 檔案。20 個獨立帳號並行建單已通過功能測試，但這不代表長期負載或高可用保證。不要啟動多個程序共用此檔作水平擴充，也不要把 SQLite 檔放在網路磁碟供各工作站直接開啟。
+目前由一個 Node 程序服務多個獨立 SQLite 帳套；每個帳套各自一個檔案。20 個獨立帳號並行建單已通過功能測試，但這不代表長期負載或高可用保證。不要啟動多個程序共用此檔作水平擴充，也不要把 SQLite 檔放在網路磁碟供各工作站直接開啟。
 
 ## 庫存與成本
 
@@ -176,3 +176,28 @@ API 回傳金額／數量為整數分／千分單位；表單寫入使用一般�
 示範只能綁 loopback。多人部署應放在公司管理主機，配置 HTTPS 反向代理、正確 Host、憑證、服務常駐、備份與監控。本次沒有開放防火牆、公網或建立雲端服務。
 
 多節點、高寫入與大量歷史查詢，需評估 PostgreSQL、背景工作及伺服器分頁；不要用資料庫檔複製實作多主寫入。
+
+## v0.4 公司上下文與新增 API
+
+請求以 `X-ERP-Company` 指定公司代碼，預設 `default`；列印使用 `?company=代碼`。兩者同時提供但不一致會拒絕。未知公司不會回退其他資料庫。公司上下文透過 AsyncLocalStorage 在每個請求中隔離，Cookie 名稱包含連接埠與公司代碼，登入、CSRF、冪等及資料庫均獨立。
+
+`GET /api/companies` 只列供選擇登入的帳套名稱／代碼；`POST /api/companies` 限主要帳套管理員建立公司。`POST /api/company-summary-grants` 限來源公司管理員授權主要帳套帳號；`GET /api/company-summary` 限主要帳套財務角色，且只讀取有明確授權的公司。成本另檢查授權旗標與角色。
+
+| 範圍 | 主要 API |
+| --- | --- |
+| 合併進出貨 | POST `/api/fulfilment-batches`，GET `/api/fulfilment-batches/:id`，GET `/print/fulfilment-batches/:id` |
+| 批次月結 | GET `/api/monthly-bills/preview`，POST `/api/monthly-bills`，POST `/api/monthly-bills/:id/pay`，GET `/print/monthly-bills/:id` |
+| 訂單外部欄位 | GET／POST `/api/documents/:id/metadata` |
+| 分期排程 | POST `/api/subscriptions`，POST `/api/subscriptions/:id/status`，POST `/api/subscription-periods/:id/change` 或 `/execute` |
+| SKU／訂單匯入 | POST `/api/sku-mappings`、`/api/order-import-templates`、`/api/order-imports/preview`、`/api/order-imports/:id/commit` |
+| 自訂報表 | POST `/api/custom-reports`，GET `/api/custom-reports/:id`，GET `/print/custom-reports/:id` |
+| 呆帳 | POST `/api/bad-debts`、`/api/bad-debts/:id/action`（approve／reject／recover／reverse） |
+| 銀行對帳 | POST `/api/reconciliations/preview`、`/api/reconciliations/:id/commit` |
+| 費用分攤 | POST `/api/expense-allocations/preview`、`/api/expense-allocations`，GET `/api/expense-allocations/:id`，GET `/print/expense-allocations/:id` |
+| 背書／其他票據 | POST `/api/bill-restrictions`、`/api/endorsements`、`/api/endorsements/:id/action`、`/api/nontrade-bills`、`/api/nontrade-bills/:id/action` |
+| 批號／序號 | POST `/api/inventory-tracking`，GET `/api/inventory-lots/:id`；出入庫／調整／調撥等接受批號分配，使用基本單位數量 |
+| 字軌／發票設定 | POST `/api/invoice-ranges`、`/api/invoice-numbers`、`/api/invoice-print-profiles`、`/api/invoice-exchange-profiles`、`/api/invoice-exchanges/preview`、`/api/invoice-exchanges/:id/commit` |
+| 維修／寄售／租賃 | POST `/api/repairs`、`/api/repairs/:id/action`、`/api/repairs/:id/parts`、`/api/service-contracts`、`/api/service-contracts/:id/sell` 或 `/return`、`/api/rental-periods/:id/charge` |
+| POS | POST `/api/pos-stores`、`/api/pos-members`、`/api/pos-promotions`、`/api/loyalty-policy`、`/api/pos-shifts`、`/api/pos/quote`、`/api/pos/checkout`、`/api/pos-sales/:id/refund` |
+
+所有新增 POST 保留原本 CSRF、請求標頭、JSON、Origin、權限與冪等契約。POS 收銀權限是逐店明確委派的狹義交易能力，價格、倉庫、促銷、點數與收款帳戶由伺服器建立，不接受用戶端的權限／售價／核准旗標；不放寬一般業務主檔與辦公室單據的資料範圍。

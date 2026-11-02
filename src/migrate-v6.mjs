@@ -1,0 +1,24 @@
+export function migrateV6(db){
+  if(Number(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get()?.value)>=6)return;
+  db.exec('BEGIN IMMEDIATE');try{
+    db.exec(`
+      CREATE TABLE bad_debts(id INTEGER PRIMARY KEY,no TEXT UNIQUE NOT NULL,open_item_id INTEGER NOT NULL REFERENCES open_items(id),amount INTEGER NOT NULL CHECK(amount>0),tax INTEGER NOT NULL CHECK(tax>=0 AND tax<=amount),recovered INTEGER NOT NULL DEFAULT 0 CHECK(recovered>=0 AND recovered<=amount),status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','approved','reversed','rejected')),reason TEXT NOT NULL,date TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id),approved_by INTEGER REFERENCES users(id),created_at TEXT NOT NULL);
+      CREATE TABLE bad_debt_events(id INTEGER PRIMARY KEY,bad_debt_id INTEGER NOT NULL REFERENCES bad_debts(id),action TEXT NOT NULL,amount INTEGER NOT NULL,date TEXT NOT NULL,bank_account_id INTEGER REFERENCES bank_accounts(id),reason TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id));
+      CREATE TABLE expense_allocations(id INTEGER PRIMARY KEY,no TEXT UNIQUE NOT NULL,expense_id INTEGER UNIQUE NOT NULL REFERENCES expenses(id),basis TEXT NOT NULL CHECK(basis IN ('amount','quantity')),date TEXT NOT NULL,reason TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id));
+      CREATE TABLE expense_allocation_lines(id INTEGER PRIMARY KEY,allocation_id INTEGER NOT NULL REFERENCES expense_allocations(id),fulfilment_line_id INTEGER NOT NULL REFERENCES fulfilment_lines(id),amount INTEGER NOT NULL CHECK(amount>=0),target TEXT NOT NULL CHECK(target IN ('inventory','cost','selling')),basis_snapshot TEXT NOT NULL,UNIQUE(allocation_id,fulfilment_line_id));
+      CREATE TABLE reconcile_jobs(id INTEGER PRIMARY KEY,bank_account_id INTEGER NOT NULL REFERENCES bank_accounts(id),rows TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'preview' CHECK(status IN ('preview','committed')),created_by INTEGER NOT NULL REFERENCES users(id),created_at TEXT NOT NULL);
+      CREATE TABLE reconciled_entries(id INTEGER PRIMARY KEY,job_id INTEGER NOT NULL REFERENCES reconcile_jobs(id),bank_account_id INTEGER NOT NULL REFERENCES bank_accounts(id),external_id TEXT NOT NULL,date TEXT NOT NULL,amount INTEGER NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id),UNIQUE(bank_account_id,external_id));
+      CREATE TABLE reconciliation_payments(entry_id INTEGER NOT NULL REFERENCES reconciled_entries(id),payment_id INTEGER UNIQUE NOT NULL REFERENCES payments(id),PRIMARY KEY(entry_id,payment_id));
+      ALTER TABLE bills ADD COLUMN crossed INTEGER NOT NULL DEFAULT 0 CHECK(crossed IN (0,1));
+      ALTER TABLE bills ADD COLUMN nontransferable INTEGER NOT NULL DEFAULT 0 CHECK(nontransferable IN (0,1));
+      ALTER TABLE bills ADD COLUMN named_payee TEXT NOT NULL DEFAULT '';
+      CREATE TABLE endorsements(id INTEGER PRIMARY KEY,no TEXT UNIQUE NOT NULL,bill_id INTEGER NOT NULL REFERENCES bills(id),partner_id INTEGER NOT NULL REFERENCES partners(id),status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','returned','cleared','bounced')),date TEXT NOT NULL,reason TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id));
+      CREATE TABLE endorsement_allocations(endorsement_id INTEGER NOT NULL REFERENCES endorsements(id),open_item_id INTEGER NOT NULL REFERENCES open_items(id),amount INTEGER NOT NULL CHECK(amount>0),PRIMARY KEY(endorsement_id,open_item_id));
+      CREATE TABLE nontrade_bills(id INTEGER PRIMARY KEY,no TEXT UNIQUE NOT NULL,bill_number TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('receivable','payable')),party_name TEXT NOT NULL,employee_id INTEGER REFERENCES employees(id),bank_account_id INTEGER NOT NULL REFERENCES bank_accounts(id),account_code TEXT NOT NULL REFERENCES accounts(code),expense_id INTEGER REFERENCES expenses(id),amount INTEGER NOT NULL CHECK(amount>0),date TEXT NOT NULL,due_date TEXT NOT NULL,status TEXT NOT NULL,reason TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id),UNIQUE(kind,bill_number));
+      CREATE TABLE nontrade_bill_events(id INTEGER PRIMARY KEY,bill_id INTEGER NOT NULL REFERENCES nontrade_bills(id),action TEXT NOT NULL,date TEXT NOT NULL,reason TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id));
+      INSERT OR IGNORE INTO accounts VALUES('5301','呆帳損失','expense'),('5401','銷售費用分攤','expense'),('4900','其他收入','revenue');
+    `);
+    for(const table of ['bad_debt_events','expense_allocations','expense_allocation_lines','reconciled_entries','reconciliation_payments','endorsement_allocations','nontrade_bill_events'])for(const action of ['UPDATE','DELETE'])db.exec(`CREATE TRIGGER no_${table}_${action.toLowerCase()} BEFORE ${action} ON ${table} BEGIN SELECT RAISE(ABORT,'immutable finance source'); END`);
+    db.prepare("UPDATE settings SET value='6' WHERE key='schema_version'").run();db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error;}
+}

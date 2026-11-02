@@ -15,23 +15,32 @@ import { saveNumbering } from './numbering.mjs';
 import { tradingReport } from './reports.mjs';
 import { rebuildPreview,rebuildCommit } from './rebuild.mjs';
 import { capabilityAudit } from './capabilities.mjs';
+import { FulfilmentBatches } from './fulfilment-batches.mjs';
+import { MonthlyBilling } from './billing.mjs';
+import { WorkflowHub } from './workflow-hub.mjs';
+import { Companies,companyContext,companyProxy } from './companies.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),demo=process.argv.includes('--demo');
 const host=process.env.ERP_HOST||'127.0.0.1',port=integer(process.env.PORT||(demo?4321:4320),1024,65535);
 if(demo&&!['127.0.0.1','localhost','::1'].includes(host))throw new Error('示範模式只能綁定本機');
 const dbPath=process.env.ERP_DB===':memory:'?':memory:':resolve(process.env.ERP_DB||resolve(root,'data',demo?'demo.sqlite':'company.sqlite'));
-const erp=new ERP(dbPath),demoUser=demo?seedDemo(erp):null;
+const defaultErp=new ERP(dbPath),erp=companyProxy(defaultErp),demoUser=demo?seedDemo(defaultErp):null;
+const companies=new Companies(defaultErp,dbPath);
 const finance=new Finance(erp),trade=new Trade(erp),operations=new Operations(erp);
+const fulfilmentBatches=new FulfilmentBatches(erp),monthlyBilling=new MonthlyBilling(erp);
+const workflowHub=new WorkflowHub(erp);
 const allowedHosts=new Set(['localhost','127.0.0.1','[::1]',...String(process.env.ERP_ALLOWED_HOSTS||'').split(',').map(s=>s.trim()).filter(Boolean)]);
-const sha=s=>createHash('sha256').update(s).digest('hex'),secure=process.env.ERP_SECURE_COOKIE==='1',cookieName='cheng_session_'+port;
+const sha=s=>createHash('sha256').update(s).digest('hex'),secure=process.env.ERP_SECURE_COOKIE==='1';
+const currentCompany=()=>companyContext.getStore()||{slug:'default',erp:defaultErp};
+const cookieName=()=> 'cheng_session_'+port+'_'+currentCompany().slug;
 const attempts=new Map();
 const security={
   'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'same-origin','Cache-Control':'no-store','Permissions-Policy':'camera=(), microphone=(), geolocation=()'
 };
 function json(res,data,status=200,headers={}){res.writeHead(status,{...security,'Content-Type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(data));}
-function session(req){const prefix=cookieName+'=',token=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(prefix))?.slice(prefix.length);if(!token)return null;const s=erp.get('SELECT s.*,u.username,u.name,u.role,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1',sha(token),Date.now());if(!s)return null;return {user:{id:s.user_id,username:s.username,name:s.name,role:s.role,active:s.active},csrf:s.csrf};}
-function createSession(res,user){const token=randomBytes(32).toString('hex'),csrf=randomBytes(24).toString('hex');erp.run('DELETE FROM sessions WHERE expires<=?',Date.now());erp.run('INSERT INTO sessions(token,user_id,csrf,expires) VALUES(?,?,?,?)',sha(token),user.id,csrf,Date.now()+8*3600000);json(res,{user,csrf},200, {'Set-Cookie':`${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secure?'; Secure':''}`});}
+function session(req){const prefix=cookieName()+'=',token=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(prefix))?.slice(prefix.length);if(!token)return null;const s=erp.get('SELECT s.*,u.username,u.name,u.role,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1',sha(token),Date.now());if(!s)return null;return {user:{id:s.user_id,username:s.username,name:s.name,role:s.role,active:s.active},csrf:s.csrf};}
+function createSession(res,user){const token=randomBytes(32).toString('hex'),csrf=randomBytes(24).toString('hex');erp.run('DELETE FROM sessions WHERE expires<=?',Date.now());erp.run('INSERT INTO sessions(token,user_id,csrf,expires) VALUES(?,?,?,?)',sha(token),user.id,csrf,Date.now()+8*3600000);json(res,{user,csrf},200, {'Set-Cookie':`${cookieName()}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secure?'; Secure':''}`});}
 async function body(req){let n=0;const chunks=[];for await(const chunk of req){n+=chunk.length;if(n>2*1024*1024)fail('請求內容不得超過 2MB',413);chunks.push(chunk);}let value;try{value=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{fail('JSON 格式錯誤');}if(value===null||typeof value!=='object'||Array.isArray(value))fail('JSON 請求需為物件');return value;}
 function csvCell(value){let s=String(value??'');if(/^[=+\-@\t\r\n]/.test(s)&&typeof value!=='number')s="'"+s;return '"'+s.replaceAll('"','""')+'"';}
 function exportCSV(u,kind){const d=erp.bootstrap(u);let rows,columns;
@@ -43,7 +52,7 @@ function exportCSV(u,kind){const d=erp.bootstrap(u);let rows,columns;
   else if(kind==='moves'){permit(u,'stock');rows=d.moves.map(x=>({...x,qty:x.qty/1000,value:x.value===undefined?'':x.value/100}));columns=['no','created_at','kind','sku','name','warehouse_name','qty',...(d.permissions.cost?['value']:[]),'reference','notes'];}
   else fail('匯出類型錯誤');return '\uFEFF'+[columns,...rows.map(r=>columns.map(c=>r[c]))].map(r=>r.map(csvCell).join(',')).join('\r\n');
 }
-const server=http.createServer(async(req,res)=>{
+async function handle(req,res){
  try{
   const hostname=String(req.headers.host||'').replace(/:\d+$/,'');if(!allowedHosts.has(hostname))fail('此主機名稱未獲允許',403);
   const url=new URL(req.url,'http://localhost'),path=url.pathname,method=req.method;
@@ -53,24 +62,32 @@ const server=http.createServer(async(req,res)=>{
     const origin=req.headers.origin;if(origin){let o;try{o=new URL(origin);}catch{fail('來源錯誤',403);}if(o.host!==req.headers.host||!['http:','https:'].includes(o.protocol))fail('不允許跨來源操作',403);}
     if(!String(req.headers['content-type']||'').startsWith('application/json'))fail('請使用 JSON',415);
   }
-  if(method==='GET'&&path==='/api/status')return json(res,{initialized:!!erp.get('SELECT id FROM users LIMIT 1'),demo,today:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date()).slice(0,10),version:'0.3.0'});
-  if(method==='POST'&&path==='/api/setup'){if(demo)fail('示範模式不允許初始化');const b=await body(req),u=erp.setup(b);return createSession(res,u);}
+  if(method==='GET'&&path==='/api/companies')return json(res,companies.list());
+  if(method==='GET'&&path==='/api/status')return json(res,{initialized:!!erp.get('SELECT id FROM users LIMIT 1'),demo:demo&&currentCompany().slug==='default',company:currentCompany().slug,today:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date()).slice(0,10),version:'0.4.0'});
+  if(method==='POST'&&path==='/api/setup'){if(demo&&currentCompany().slug==='default')fail('示範模式不允許初始化');const b=await body(req),u=erp.setup(b);return createSession(res,u);}
   if(method==='POST'&&(path==='/api/login'||path==='/api/demo')){
-    const b=await body(req);if(path==='/api/demo'){if(!demo)fail('示範模式未啟用',404);return createSession(res,demoUser);}
-    const key=req.socket.remoteAddress+':'+String(b.username||'').slice(0,50);let a=attempts.get(key);if(!a||a.until<Date.now()){a={n:0,until:Date.now()+15*60000};if(attempts.size>10000)attempts.clear();attempts.set(key,a);}if(a.n>=10)fail('登入嘗試過多，請 15 分鐘後再試',429);a.n++;
+    const b=await body(req);if(path==='/api/demo'){if(!demo||currentCompany().slug!=='default')fail('示範模式未啟用',404);return createSession(res,demoUser);}
+    const key=currentCompany().slug+':'+req.socket.remoteAddress+':'+String(b.username||'').slice(0,50);let a=attempts.get(key);if(!a||a.until<Date.now()){a={n:0,until:Date.now()+15*60000};if(attempts.size>10000)attempts.clear();attempts.set(key,a);}if(a.n>=10)fail('登入嘗試過多，請 15 分鐘後再試',429);a.n++;
     if(typeof b.password!=='string'||b.password.length>128)fail('帳號或密碼不正確',401);
     const u=erp.get('SELECT * FROM users WHERE username=? AND active=1',String(b.username||'').slice(0,50));
     const dummy='00000000000000000000000000000000:'+('00'.repeat(64));if(!verifyPassword(b.password,u?.password||dummy)||!u)fail('帳號或密碼不正確',401);attempts.delete(key);erp.log(u,'login','user',u.id);return createSession(res,erp.user(u.id));
   }
-  if(method==='GET'&&['/','/index.html','/app.js','/finance-ui.js','/operations-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
+  if(method==='GET'&&['/','/index.html','/app.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
     if(path==='/print.js'){res.writeHead(200,{...security,'Content-Type':'text/javascript; charset=utf-8'});return res.end("document.getElementById('print').addEventListener('click',()=>window.print());");}
     const name=path==='/'?'index.html':path.slice(1),type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.svg')?'image/svg+xml':'text/html';res.writeHead(200,{...security,'Content-Type':type+'; charset=utf-8'});return res.end(readFileSync(resolve(root,'public',name)));
   }
   const auth=session(req);if(!auth)fail('請先登入',401);const u=auth.user;
   if(method==='POST'&&req.headers['x-csrf-token']!==auth.csrf)fail('驗證已失效，請重新登入',403);
   if(method==='GET'){
+    const extra=workflowHub.get(u,path,Object.fromEntries(url.searchParams));if(extra!==undefined)return json(res,extra);
+    const printed=workflowHub.print(u,path,Object.fromEntries(url.searchParams));if(printed!==undefined){res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(printed);}
+    if(path==='/api/company-summary')return json(res,companies.summary(currentCompany(),u));
     if(path==='/api/session')return json(res,auth);
-    if(path==='/api/bootstrap'){const d=erp.bootstrap(u);return json(res,{...d,...finance.data(u,d),...operations.data(u),capability_audit:capabilityAudit()});}
+    if(path==='/api/bootstrap'){const d=erp.bootstrap(u);return json(res,{...d,...finance.data(u,d),...operations.data(u),...fulfilmentBatches.data(u),...monthlyBilling.data(u),...workflowHub.data(u),...companies.data(currentCompany(),u),capability_audit:capabilityAudit()});}
+    if(/^\/api\/fulfilment-batches\/\d+$/.test(path))return json(res,fulfilmentBatches.get(u,path.split('/').at(-1)));
+    if(/^\/api\/monthly-bills\/\d+$/.test(path))return json(res,monthlyBilling.get(u,path.split('/').at(-1)));
+    if(path==='/api/monthly-bills/preview')return json(res,monthlyBilling.pending(u,Object.fromEntries(url.searchParams)));
+    if(/^\/print\/(fulfilment-batches|monthly-bills)\/\d+$/.test(path)){const html=path.startsWith('/print/fulfilment-batches/')?fulfilmentBatches.print(u,path.split('/').at(-1)):monthlyBilling.print(u,path.split('/').at(-1));res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(html);}
     if(/^\/api\/picks\/\d+$/.test(path))return json(res,operations.pick(u,path.split('/').at(-1)));
     if(/^\/api\/product-images\/\d+$/.test(path)){erp.product(path.split('/').at(-1));const img=erp.get('SELECT * FROM product_images WHERE product_id=?',Number(path.split('/').at(-1)));if(!img)fail('尚未上傳圖片',404);res.writeHead(200,{...security,'Content-Type':img.mime,'Content-Length':img.data.length,'Cache-Control':'private, no-cache'});return res.end(Buffer.from(img.data));}
     if(path==='/print/labels'||/^\/print\/(picks|counts)\/\d+$/.test(path)){const html=path==='/print/labels'?operations.labels(u,Object.fromEntries(url.searchParams)):path.startsWith('/print/picks/')?operations.printPick(u,path.split('/').at(-1)):operations.printCount(u,path.split('/').at(-1),url.searchParams.get('blank')!=='0');res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(html);}
@@ -89,7 +106,7 @@ const server=http.createServer(async(req,res)=>{
     fail('找不到此路徑',404);
   }
   const b=await body(req);
-  if(path==='/api/logout'){erp.run('DELETE FROM sessions WHERE csrf=? AND user_id=?',auth.csrf,u.id);return json(res,{ok:true},200,{'Set-Cookie':`${cookieName}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`});}
+  if(path==='/api/logout'){erp.run('DELETE FROM sessions WHERE csrf=? AND user_id=?',auth.csrf,u.id);return json(res,{ok:true},200,{'Set-Cookie':`${cookieName()}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`});}
   if(path==='/api/label-preview'){operations.labels(u,b);return json(res,{valid:true});}
   if(path==='/api/document-preview'){permit(u,b.kind==='purchase'?'buy':'sell');const p=trade.preview(b);return json(res,{net:p.net,tax:p.tax,total:p.total,header_discount:p.header,lines:p.rows.map(l=>({amount:l.amount,net:l.net,tax:l.tax,total:l.total,base_qty:l.base_qty,header_discount_amount:l.header_discount_amount}))});}
   const key=String(req.headers['idempotency-key']||'');if(!/^[\w-]{16,100}$/.test(key))fail('缺少有效的冪等請求識別碼');const fingerprint=sha(u.role+'\n'+path+'\n'+JSON.stringify(b));
@@ -98,7 +115,12 @@ const server=http.createServer(async(req,res)=>{
   const result=erp.tx(()=>{
     const previous=erp.get('SELECT * FROM requests WHERE key=? AND user_id=?',key,u.id);if(previous){if(previous.fingerprint!==fingerprint)fail('請求識別碼已用於不同內容',409);return JSON.parse(previous.response);}
     let r;
-    if(path==='/api/partners')r=erp.savePartner(u,b);
+    const extra=path==='/api/companies'?companies.create(currentCompany(),u,b):path==='/api/company-summary-grants'?companies.grant(currentCompany(),u,b):workflowHub.post(u,path,b);
+    if(extra!==undefined)r=extra;
+    else if(path==='/api/fulfilment-batches')r=fulfilmentBatches.create(u,b);
+    else if(path==='/api/monthly-bills')r=monthlyBilling.close(u,b);
+    else if(/^\/api\/monthly-bills\/\d+\/pay$/.test(path))r=monthlyBilling.pay(u,path.split('/')[3],b);
+    else if(path==='/api/partners')r=erp.savePartner(u,b);
     else if(path==='/api/products')r=erp.saveProduct(u,b);
     else if(path==='/api/product-units')r=trade.saveUnit(u,b);
     else if(path==='/api/product-images')r=operations.image(u,b);
@@ -168,7 +190,8 @@ const server=http.createServer(async(req,res)=>{
   if(status===500)console.error('ERP request failed:',e.stack);
   json(res,{error:e instanceof DomainError?e.message:constraint?'代號、條碼或資料已存在，請檢查後重試':foreign?'關聯資料不存在或已變更':'系統發生錯誤，請查看伺服器紀錄'},status);
  }
-});
+}
+const server=http.createServer((req,res)=>{try{const url=new URL(req.url,'http://localhost'),header=req.headers['x-erp-company'],query=url.searchParams.get('company');if(header&&query&&header!==query)fail('公司帳套選擇不一致',400);const context=companies.resolve(String(header||query||'default'));companyContext.run(context,()=>handle(req,res));}catch(error){json(res,{error:error instanceof DomainError?error.message:'公司帳套載入失敗'},error instanceof DomainError?error.status:500);}});
 server.requestTimeout=30000;server.headersTimeout=15000;
 server.listen(port,host,()=>console.log(`成祥 ERP ${demo?'（獨立示範資料庫）':''}\nLocal: http://${host==='::1'?'[::1]':host}:${port}\nDatabase: ${dbPath}\n以 Ctrl+C 停止服務。`));
-for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>{erp.close();process.exit(0);}));
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>{companies.close();defaultErp.close();process.exit(0);}));

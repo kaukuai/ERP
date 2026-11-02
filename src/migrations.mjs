@@ -1,7 +1,7 @@
 // Additive, repeatable migration. Existing transaction rows retain their old defaults.
 export function migrateV2(db){
  const version=db.prepare("SELECT value FROM settings WHERE key='schema_version'").get();
- if(Number(version?.value||1)>3)throw new Error('資料庫版本比程式新，請使用相符版本');
+ if(Number(version?.value||1)>11)throw new Error('資料庫版本比程式新，請使用相符版本');
  if(Number(version?.value||1)>=2)return;
  const add=(table,name,definition)=>{if(!db.prepare(`PRAGMA table_info(${table})`).all().some(c=>c.name===name))db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);};
  db.exec('BEGIN IMMEDIATE');

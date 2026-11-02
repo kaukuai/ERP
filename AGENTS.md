@@ -15,5 +15,7 @@
 - Preserve transaction atomicity, integer money/quantity precision, immutable stock/accounting/audit ledgers, version conflict checks, permission checks, CSRF protection, and idempotency.
 - Additive database migrations must preserve existing data and be tested on a copy. Use backup and verification steps documented in `docs/v0.3操作與升級.md` before upgrading an existing company environment.
 - Keep Traditional Chinese product text and user documentation. Company needs: replace the old system, quotation/order yellow slips, about 20 users, extensible warehouses, no own manufacturing.
+- Multi-company workspaces use separate SQLite databases, users, cookies and CSRF tokens. Preserve explicit summary grants and never fall back to another database for an unknown company. Read `docs/v0.4操作與升級.md` before changing company, billing, tracking or POS behavior.
+- POS terminal/device configuration does not prove hardware, payment API or official invoice integration. Keep E08/X10 limitations explicit until real provider/device evidence exists.
 - Feature status is recorded in `src/capabilities.mjs`; update only when the stated acceptance behavior actually works. Regenerate reports with `npm run capabilities`. Do not represent incomplete or unconnected external modules as completed.
 - Codespaces preview ports should remain private. Development forwarding is configured by `scripts/dev.mjs` with exact hosts; do not disable origin, host, session, or permission checks to make a preview work.
