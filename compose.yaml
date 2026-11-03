@@ -1,0 +1,32 @@
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    environment:
+      ERP_ALLOWED_HOSTS: ${ERP_ALLOWED_HOSTS:?Set exact frontend and backend hostnames}
+      ERP_PROXY_SECRET: ${ERP_PROXY_SECRET:?Set an independent random proxy secret}
+      ERP_SETUP_KEY: ${ERP_SETUP_KEY:?Set an independent random setup key}
+    volumes:
+      - erp-data:/var/lib/erp
+    expose:
+      - "4320"
+    stop_grace_period: 45s
+  https:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      ERP_BACKEND_HOST: ${ERP_BACKEND_HOST:?Set backend domain DNS to this server}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - tls-data:/data
+      - tls-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  erp-data:
+  tls-data:
+  tls-config:

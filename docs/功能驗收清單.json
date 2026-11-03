@@ -6,7 +6,7 @@
     "reference": "https://www.scribd.com/document/982017657/數碼一號-進銷存系統操作手冊",
     "note": "頁碼以原廠公開 PDF 為準。比對功能行為；不複製廠商程式、版面或操作文字。"
   },
-  "version": "0.4.0",
+  "version": "0.4.1",
   "statusLabels": {
     "usable": "可操作（依驗收範圍）",
     "partial": "部分具備",
@@ -14,8 +14,8 @@
     "external": "需外部整合"
   },
   "summary": {
-    "usable": 70,
-    "partial": 31,
+    "usable": 71,
+    "partial": 30,
     "missing": 0,
     "external": 14
   },
@@ -145,10 +145,10 @@
       "group": "基本資料",
       "name": "Excel 匯入欄位映射範本",
       "pages": "15–19、30–31、42–45",
-      "status": "partial",
-      "acceptance": "已有固定欄位 CSV 預覽及原子匯入；需 XLSX 與可保存欄位映射。",
-      "evidence": "",
-      "priority": "P1 核心補齊"
+      "status": "usable",
+      "acceptance": "管理員可保存商品、客戶／供應商、期初庫存的來源欄名映射與固定值；純值 XLSX／UTF-8 CSV 預覽、來源雜湊去重、範本修訂與整批原子匯入，不支援公式／巨集或舊 XLS。",
+      "evidence": "master-imports.test.mjs",
+      "priority": "驗收保持"
     },
     {
       "id": "B14",
@@ -1106,7 +1106,7 @@
       "name": "20 人部署及維運",
       "pages": "公司需求",
       "status": "partial",
-      "acceptance": "尚須 HTTPS、伺服器與備份還原部署、多使用者負載及權限驗收；目前僅本機試行。",
+      "acceptance": "已具 HTTPS 代理、持久磁碟容器與初始化保護設定，並驗證代理登入、CSRF、公司隔離及重啟保留；正式平台部署、異機災難還原與長時間多人負載仍待驗收。",
       "evidence": "",
       "priority": "P1 核心補齊"
     },

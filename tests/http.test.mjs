@@ -8,11 +8,12 @@ import { mkdtempSync,writeFileSync,unlinkSync,rmdirSync,existsSync,readdirSync }
 import { tmpdir } from 'node:os';
 import { resolve,join } from 'node:path';
 import { ERP,today } from '../src/core.mjs';
+import { serverEnv } from './support/server-env.mjs';
 
 test('HTTP end-to-end: security, idempotency, permissions, quotation, stock, cash and backup restore',async t=>{
  const portServer=createServer();portServer.listen(0,'127.0.0.1');await once(portServer,'listening');const port=portServer.address().port;await new Promise(r=>portServer.close(r));
  const tmp=mkdtempSync(join(tmpdir(),'cheng-erp-test-')),dbfile=join(tmp,'company.sqlite');
- const child=spawn(process.execPath,['src/server.mjs'],{cwd:resolve(import.meta.dirname,'..'),env:{...process.env,ERP_HOST:'127.0.0.1',ERP_DB:dbfile,PORT:String(port)},stdio:['ignore','pipe','pipe'],windowsHide:true});let stderr='',stdout='',lastConnectionError='';child.stderr.on('data',b=>stderr+=b.toString());child.stdout.on('data',b=>stdout+=b.toString());
+ const child=spawn(process.execPath,['src/server.mjs'],{cwd:resolve(import.meta.dirname,'..'),env:serverEnv({ERP_HOST:'127.0.0.1',ERP_DB:dbfile,PORT:String(port)}),stdio:['ignore','pipe','pipe'],windowsHide:true});let stderr='',stdout='',lastConnectionError='';child.stderr.on('data',b=>stderr+=b.toString());child.stdout.on('data',b=>stdout+=b.toString());
  t.after(async()=>{if(child.exitCode===null){child.kill();await once(child,'exit');}for(const name of ['company.sqlite','company.sqlite-wal','company.sqlite-shm','restored.sqlite','restored.sqlite-wal','restored.sqlite-shm']){const p=join(tmp,name);if(existsSync(p))unlinkSync(p);}const backups=join(tmp,'backups');if(existsSync(backups)){for(const file of readdirSync(backups))if(/^before-rebuild-\d+-[a-f0-9]+\.sqlite$/.test(file))unlinkSync(join(backups,file));rmdirSync(backups);}rmdirSync(tmp);});
  const base='http://127.0.0.1:'+port;
  let ready=false;for(let i=0;i<80;i++){if(child.exitCode!==null)throw Error('server failed: '+stderr);try{if((await fetch(base+'/api/status')).ok){ready=true;break;}}catch(e){lastConnectionError=String(e.cause||e);}await new Promise(r=>setTimeout(r,100));}assert.ok(ready,'server starts: '+stdout+' '+stderr+' '+lastConnectionError);

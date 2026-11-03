@@ -4,6 +4,9 @@ data/
 *.log
 .env
 .env.*
+!deploy/*.env.example
+vercel-public/
+.vercel/
 *.pem
 *.key
 *.p12

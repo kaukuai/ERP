@@ -1,4 +1,4 @@
-# CHENG ERP development
+# ERP development
 
 ## Working location
 
@@ -7,6 +7,9 @@
 - Confirm the actual execution environment before reporting a migration as completed. GitHub uploads, remote CI, ChatGPT Work, and Codespaces configuration alone do not prove that a Codex coding task is running in a published cloud environment.
 
 ## Project rules
+
+- Keep README and release/update notes neutral: do not include customer, demo-business or reference-vendor company names. Technical platform/product identifiers needed for configuration may remain in deployment documentation.
+- Vercel runs only the gateway in api/index.mjs. The SQLite backend requires a persistent disk and separate HTTPS hosting. Preserve authenticated proxy headers, exact allowed hosts, secure cookies and the setup key; never silently fall back to an ephemeral production database. See docs/雲端部署.md.
 
 - Runtime: Node.js 24; ES modules; SQLite through `node:sqlite`. No npm runtime dependencies. The vendored bwip-js files must remain accompanied by their notices.
 - Run `npm run verify` before handing off code. The suite uses independent in-memory or temporary databases. Never run experiments against `data/company.sqlite`.

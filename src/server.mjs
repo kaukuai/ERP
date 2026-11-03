@@ -19,8 +19,14 @@ import { FulfilmentBatches } from './fulfilment-batches.mjs';
 import { MonthlyBilling } from './billing.mjs';
 import { WorkflowHub } from './workflow-hub.mjs';
 import { Companies,companyContext,companyProxy } from './companies.mjs';
+import { appVersion,allowedHostnames,requestSite,secretMatches,validateSecret } from './deployment.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),demo=process.argv.includes('--demo');
+if(process.env.VERCEL==='1')throw new Error('請使用 vercel.json 指定的 api/index.mjs 網站入口；SQLite 後端需要持久磁碟。');
+const proxySecret=process.env.ERP_PROXY_SECRET,setupKey=process.env.ERP_SETUP_KEY;
+if(proxySecret)validateSecret(proxySecret,'ERP_PROXY_SECRET');
+if(setupKey||proxySecret||process.env.ERP_REQUIRE_SETUP_KEY==='1')validateSecret(setupKey,'ERP_SETUP_KEY');
+if(proxySecret&&setupKey&&proxySecret===setupKey)throw new Error('ERP_SETUP_KEY 與 ERP_PROXY_SECRET 必須使用不同密鑰');
 const host=process.env.ERP_HOST||'127.0.0.1',port=integer(process.env.PORT||(demo?4321:4320),1024,65535);
 if(demo&&!['127.0.0.1','localhost','::1'].includes(host))throw new Error('示範模式只能綁定本機');
 const dbPath=process.env.ERP_DB===':memory:'?':memory:':resolve(process.env.ERP_DB||resolve(root,'data',demo?'demo.sqlite':'company.sqlite'));
@@ -29,7 +35,7 @@ const companies=new Companies(defaultErp,dbPath);
 const finance=new Finance(erp),trade=new Trade(erp),operations=new Operations(erp);
 const fulfilmentBatches=new FulfilmentBatches(erp),monthlyBilling=new MonthlyBilling(erp);
 const workflowHub=new WorkflowHub(erp);
-const allowedHosts=new Set(['localhost','127.0.0.1','[::1]',...String(process.env.ERP_ALLOWED_HOSTS||'').split(',').map(s=>s.trim()).filter(Boolean)]);
+const allowedHosts=allowedHostnames();
 const sha=s=>createHash('sha256').update(s).digest('hex'),secure=process.env.ERP_SECURE_COOKIE==='1';
 const currentCompany=()=>companyContext.getStore()||{slug:'default',erp:defaultErp};
 const cookieName=()=> 'cheng_session_'+port+'_'+currentCompany().slug;
@@ -54,17 +60,18 @@ function exportCSV(u,kind){const d=erp.bootstrap(u);let rows,columns;
 }
 async function handle(req,res){
  try{
-  const hostname=String(req.headers.host||'').replace(/:\d+$/,'');if(!allowedHosts.has(hostname))fail('此主機名稱未獲允許',403);
+  let site;try{site=requestSite(req,allowedHosts,proxySecret);}catch(error){fail(error.message,403);}
   const url=new URL(req.url,'http://localhost'),path=url.pathname,method=req.method;
   if(!['GET','POST'].includes(method))fail('方法不支援',405);
   if(method==='POST'){
     if(req.headers['x-erp-request']!=='1')fail('缺少必要請求標頭',403);
-    const origin=req.headers.origin;if(origin){let o;try{o=new URL(origin);}catch{fail('來源錯誤',403);}if(o.host!==req.headers.host||!['http:','https:'].includes(o.protocol))fail('不允許跨來源操作',403);}
+    const origin=req.headers.origin;if(origin){let o;try{o=new URL(origin);}catch{fail('來源錯誤',403);}if(o.host!==site.host||!['http:','https:'].includes(o.protocol)||(site.proxied&&o.protocol!==site.protocol+':'))fail('不允許跨來源操作',403);}
     if(!String(req.headers['content-type']||'').startsWith('application/json'))fail('請使用 JSON',415);
   }
   if(method==='GET'&&path==='/api/companies')return json(res,companies.list());
-  if(method==='GET'&&path==='/api/status')return json(res,{initialized:!!erp.get('SELECT id FROM users LIMIT 1'),demo:demo&&currentCompany().slug==='default',company:currentCompany().slug,today:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date()).slice(0,10),version:'0.4.0'});
-  if(method==='POST'&&path==='/api/setup'){if(demo&&currentCompany().slug==='default')fail('示範模式不允許初始化');const b=await body(req),u=erp.setup(b);return createSession(res,u);}
+  if(method==='GET'&&path==='/healthz')return json(res,{ok:true,version:appVersion});
+  if(method==='GET'&&path==='/api/status')return json(res,{initialized:!!erp.get('SELECT id FROM users LIMIT 1'),setup_key_required:!!setupKey,demo:demo&&currentCompany().slug==='default',company:currentCompany().slug,today:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date()).slice(0,10),version:appVersion});
+  if(method==='POST'&&path==='/api/setup'){if(demo&&currentCompany().slug==='default')fail('示範模式不允許初始化');const b=await body(req);if(setupKey&&!secretMatches(b.setup_key,setupKey))fail('初始化密鑰不正確',403);const u=erp.setup(b);return createSession(res,u);}
   if(method==='POST'&&(path==='/api/login'||path==='/api/demo')){
     const b=await body(req);if(path==='/api/demo'){if(!demo||currentCompany().slug!=='default')fail('示範模式未啟用',404);return createSession(res,demoUser);}
     const key=currentCompany().slug+':'+req.socket.remoteAddress+':'+String(b.username||'').slice(0,50);let a=attempts.get(key);if(!a||a.until<Date.now()){a={n:0,until:Date.now()+15*60000};if(attempts.size>10000)attempts.clear();attempts.set(key,a);}if(a.n>=10)fail('登入嘗試過多，請 15 分鐘後再試',429);a.n++;
@@ -72,7 +79,7 @@ async function handle(req,res){
     const u=erp.get('SELECT * FROM users WHERE username=? AND active=1',String(b.username||'').slice(0,50));
     const dummy='00000000000000000000000000000000:'+('00'.repeat(64));if(!verifyPassword(b.password,u?.password||dummy)||!u)fail('帳號或密碼不正確',401);attempts.delete(key);erp.log(u,'login','user',u.id);return createSession(res,erp.user(u.id));
   }
-  if(method==='GET'&&['/','/index.html','/app.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
+  if(method==='GET'&&['/','/index.html','/app.js','/master-imports-ui.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
     if(path==='/print.js'){res.writeHead(200,{...security,'Content-Type':'text/javascript; charset=utf-8'});return res.end("document.getElementById('print').addEventListener('click',()=>window.print());");}
     const name=path==='/'?'index.html':path.slice(1),type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.svg')?'image/svg+xml':'text/html';res.writeHead(200,{...security,'Content-Type':type+'; charset=utf-8'});return res.end(readFileSync(resolve(root,'public',name)));
   }

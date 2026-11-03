@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: erp-backend
+    runtime: docker
+    plan: starter
+    numInstances: 1
+    autoDeploy: false
+    healthCheckPath: /healthz
+    disk:
+      name: erp-data
+      mountPath: /var/lib/erp
+      sizeGB: 10
+    envVars:
+      - key: ERP_ALLOWED_HOSTS
+        sync: false
+      - key: ERP_PROXY_SECRET
+        generateValue: true
+      - key: ERP_SETUP_KEY
+        generateValue: true

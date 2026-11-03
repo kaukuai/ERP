@@ -7,10 +7,11 @@ import { InventoryTracking } from './inventory-tracking.mjs';
 import { InvoiceWorkflows } from './invoice-workflows.mjs';
 import { ServiceWorkflows } from './service-workflows.mjs';
 import { POS } from './pos.mjs';
+import { MasterImports } from './master-imports.mjs';
 
 export class WorkflowHub {
-  constructor(e){this.orders=new OrderWorkflows(e);this.imports=new SkuOrders(e);this.reports=new CustomReports(e);this.finance=new FinanceWorkflows(e);this.bills=new BillWorkflows(e);this.inventory=new InventoryTracking(e);this.invoices=new InvoiceWorkflows(e);this.services=new ServiceWorkflows(e);this.pos=new POS(e);}
-  data(u){return {...this.orders.data(u),...this.imports.data(u),...this.reports.data(u),...this.finance.data(u),...this.bills.data(u),...this.inventory.data(u),...this.invoices.data(u),...this.services.data(u),...this.pos.data(u)};}
+  constructor(e){this.orders=new OrderWorkflows(e);this.imports=new SkuOrders(e);this.reports=new CustomReports(e);this.finance=new FinanceWorkflows(e);this.bills=new BillWorkflows(e);this.inventory=new InventoryTracking(e);this.invoices=new InvoiceWorkflows(e);this.services=new ServiceWorkflows(e);this.pos=new POS(e);this.masters=new MasterImports(e);}
+  data(u){return {...this.orders.data(u),...this.imports.data(u),...this.reports.data(u),...this.finance.data(u),...this.bills.data(u),...this.inventory.data(u),...this.invoices.data(u),...this.services.data(u),...this.pos.data(u),...this.masters.data(u)};}
   get(u,path,query){
     const id=path.split('/')[3];
     if(/^\/api\/expense-allocations\/\d+$/.test(path))return this.finance.allocation(u,id);
@@ -27,6 +28,9 @@ export class WorkflowHub {
   print(u,path,query){if(/^\/print\/expense-allocations\/\d+$/.test(path))return this.finance.printAllocation(u,path.split('/')[3]);if(/^\/print\/pos-sales\/\d+$/.test(path))return this.pos.receipt(u,path.split('/')[3]);if(/^\/print\/(repairs|service-contracts)\/\d+$/.test(path))return this.services.print(u,path.split('/')[2],path.split('/')[3]);if(/^\/print\/invoice-profiles\/\d+$/.test(path))return this.invoices.proof(u,path.split('/')[3]);if(/^\/print\/custom-reports\/\d+$/.test(path))return this.reports.print(u,path.split('/')[3],query);}
   post(u,path,b){
     const id=path.split('/')[3];
+    if(path==='/api/master-import-templates')return this.masters.save(u,b);
+    if(path==='/api/master-imports/preview')return this.masters.preview(u,b);
+    if(/^\/api\/imports\/\d+\/commit$/.test(path))return this.masters.commit(u,id);
     if(path==='/api/service-policy')return this.services.configure(u,b);
     if(path==='/api/repairs')return this.services.createRepair(u,b);
     if(/^\/api\/repairs\/\d+\/action$/.test(path))return this.services.repairAction(u,id,b);

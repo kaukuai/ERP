@@ -7,11 +7,12 @@ import { mkdtempSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
+import { serverEnv } from './support/server-env.mjs';
 
 test('new workflow HTTP routes and multi-company authentication isolation',async t=>{
   const probe=createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');const port=probe.address().port;await new Promise(resolve=>probe.close(resolve));
   const directory=mkdtempSync(join(tmpdir(),'erp-workflow-http-')),base='http://127.0.0.1:'+port;
-  const server=spawn(process.execPath,['src/server.mjs','--demo'],{cwd:new URL('..',import.meta.url),env:{...process.env,ERP_HOST:'127.0.0.1',PORT:String(port),ERP_DB:join(directory,'demo.sqlite')},stdio:['ignore','pipe','pipe']});let errors='';server.stderr.on('data',data=>errors+=data);server.stdout.resume();
+  const server=spawn(process.execPath,['src/server.mjs','--demo'],{cwd:new URL('..',import.meta.url),env:serverEnv({ERP_HOST:'127.0.0.1',PORT:String(port),ERP_DB:join(directory,'demo.sqlite')}),stdio:['ignore','pipe','pipe']});let errors='';server.stderr.on('data',data=>errors+=data);server.stdout.resume();
   t.after(async()=>{if(server.exitCode===null){server.kill();await once(server,'exit');}rmSync(directory,{recursive:true,force:true});});
   for(let attempt=0;attempt<100;attempt++){if(server.exitCode!==null)throw Error(errors);try{if((await fetch(base+'/api/status')).ok)break;}catch{}await setTimeout(50);}
   async function call(path,body,session,company='default',extra={}){

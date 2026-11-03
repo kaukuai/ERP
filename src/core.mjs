@@ -12,6 +12,8 @@ import { migrateV8 } from './migrate-v8.mjs';
 import { migrateV9 } from './migrate-v9.mjs';
 import { migrateV10 } from './migrate-v10.mjs';
 import { migrateV11 } from './migrate-v11.mjs';
+import { migrateV12 } from './migrate-v12.mjs';
+import { schemaVersion } from './schema-version.mjs';
 import { withInventorySelection,prepareLotMove,commitLotMove } from './inventory-tracking.mjs';
 import { recordOpenItem,itemAccount } from './billing.mjs';
 import { Trade,baseQuantity } from './trade.mjs';
@@ -55,13 +57,13 @@ export class ERP {
   constructor(path=':memory:') {
     if(path!==':memory:') mkdirSync(dirname(path),{recursive:true});
     this.db=new DatabaseSync(path);try{
-    if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").get()){const version=Number(this.db.prepare("SELECT value FROM settings WHERE key='schema_version'").get()?.value||1);if(!Number.isInteger(version)||version<1||version>11)throw Error('資料庫版本比程式新或版本記錄無效，請使用相符版本');}
+    if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").get()){const version=Number(this.db.prepare("SELECT value FROM settings WHERE key='schema_version'").get()?.value||1);if(!Number.isInteger(version)||version<1||version>schemaVersion)throw Error('資料庫版本比程式新或版本記錄無效，請使用相符版本');}
     this.db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;');
     this.db.exec(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));
     this.db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').run('schema_version','1');
     const accounts=[['1000','銀行及現金','asset'],['1100','應收帳款','asset'],['1200','存貨','asset'],['1250','借出存貨','asset'],['1300','進項稅額','asset'],['2000','應付帳款','liability'],['2100','銷項稅額','liability'],['2200','借入存貨義務','liability'],['3000','期初權益','equity'],['4000','銷貨收入','revenue'],['5000','銷貨成本','expense'],['5100','存貨調整損益','expense']];
     for(const a of accounts) this.db.prepare('INSERT OR IGNORE INTO accounts VALUES(?,?,?)').run(...a);
-    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);
+    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);
     }catch(error){this.db.close();throw error;}
   }
   close(){this.db.close();}
@@ -318,7 +320,7 @@ export class ERP {
     const rows=b.rows.map((r,i)=>{try{
       if(b.kind==='products'){const sku=txt(r.sku,60,true);if(seen.has(sku)||this.get('SELECT id FROM products WHERE sku=?',sku))fail('品號重複');seen.add(sku);txt(r.name,150,true);scaled(r.price??'0');scaled(r.cost??'0');scaled(r.safety_qty??'0',3);const barcode=txt(r.barcode,80);if(barcode){if(barcodes.has(barcode)||this.get('SELECT id FROM products WHERE barcode=?',barcode)||this.get('SELECT id FROM product_units WHERE barcode=?',barcode))fail('條碼重複');barcodes.add(barcode);}}
       if(b.kind==='partners'){const code=txt(r.code,40,true);if(seen.has(code)||this.get('SELECT id FROM partners WHERE code=?',code))fail('代號重複');seen.add(code);txt(r.name,100,true);if(!['customer','supplier','both'].includes(r.kind||'customer'))fail('類型錯誤');integer(r.payment_days??30,0,365);scaled(r.credit_limit??'0');}
-      if(b.kind==='opening_stock'){const p=this.get('SELECT * FROM products WHERE sku=?',txt(r.sku,60,true)),w=this.get('SELECT * FROM warehouses WHERE code=?',txt(r.warehouse_code,40,true));if(!p||!w)fail('品號或倉庫代號不存在');const key=p.id+':'+w.id;if(seen.has(key)||this.get('SELECT id FROM stock_moves WHERE product_id=? AND warehouse_id=? LIMIT 1',p.id,w.id))fail('此品項倉庫已有流水，不能重複匯入期初');seen.add(key);scaled(r.qty,3,1);scaled(r.unit_cost??'0');}
+      if(b.kind==='opening_stock'){const p=this.get('SELECT * FROM products WHERE sku=?',txt(r.sku,60,true)),w=this.get('SELECT * FROM warehouses WHERE code=?',txt(r.warehouse_code,40,true));if(!p||!w)fail('品號或倉庫代號不存在');if(!p.track_stock)fail('非庫存服務不可匯入期初庫存');if(p.tracking_mode!=='none')fail('批號／序號商品請使用批號入庫流程');const key=p.id+':'+w.id;if(seen.has(key)||this.get('SELECT id FROM stock_moves WHERE product_id=? AND warehouse_id=? LIMIT 1',p.id,w.id))fail('此品項倉庫已有流水，不能重複匯入期初');seen.add(key);scaled(r.qty,3,1);scaled(r.unit_cost??'0');}
       return r;
     }catch(e){errors.push({row:i+2,message:e.message});return r;}});
     return this.tx(()=>{const summary={count:rows.length,errors};const id=Number(this.run('INSERT INTO imports(kind,payload,summary,created_by,created_at) VALUES(?,?,?,?,?)',b.kind,JSON.stringify(rows),JSON.stringify(summary),u.id,now()).lastInsertRowid);this.log(u,'preview','import',id,{kind:b.kind,count:rows.length,errors:errors.length});return {id,...summary};});

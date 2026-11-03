@@ -1,6 +1,6 @@
 # 架構與 API
 
-基準：2026-11-02，v0.4 多公司核心試行版。新增功能、遷移與限制見 [v0.4 操作與升級](v0.4操作與升級.md)，歷史流程另見 v0.2／v0.3 文件。
+基準：2026-11-03，v0.4.1 多公司核心試行版。新增功能、遷移與限制見 [v0.4 操作與升級](v0.4操作與升級.md)，歷史流程另見 v0.2／v0.3 文件。
 
 ## 執行架構
 
@@ -201,3 +201,9 @@ API 回傳金額／數量為整數分／千分單位；表單寫入使用一般�
 | POS | POST `/api/pos-stores`、`/api/pos-members`、`/api/pos-promotions`、`/api/loyalty-policy`、`/api/pos-shifts`、`/api/pos/quote`、`/api/pos/checkout`、`/api/pos-sales/:id/refund` |
 
 所有新增 POST 保留原本 CSRF、請求標頭、JSON、Origin、權限與冪等契約。POS 收銀權限是逐店明確委派的狹義交易能力，價格、倉庫、促銷、點數與收款帳戶由伺服器建立，不接受用戶端的權限／售價／核准旗標；不放寬一般業務主檔與辦公室單據的資料範圍。
+
+## v0.4.1 部署與匯入
+
+雲端入口為 `api/index.mjs`，後端為 `src/server.mjs`，部署設定與持久磁碟見 [雲端部署](雲端部署.md)。`ERP_PROXY_SECRET` 驗證代理公開網域；`ERP_SETUP_KEY` 保護首次建立帳套，`GET /api/status` 的 `setup_key_required` 提供表單顯示依據。代理模式啟動時必須設定不同的兩把密鑰，均至少 32 字元。`GET /healthz` 只回傳健康狀態與版本。
+
+`POST /api/master-import-templates` 保存／修改管理員的映射範本（kind、name、columns、defaults、id／version）；`POST /api/master-imports/preview` 接受 template_id、format，以及 CSV text 或 XLSX base64。`POST /api/imports/:id/commit` 確認既有或映射匯入；映射批次檢查來源雜湊及範本修訂，保存不可改寫的映射快照。完整欄位與檔案限制見 [更新說明](v0.4.1更新與部署.md)。

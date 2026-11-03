@@ -15,7 +15,7 @@ const groups=[
  ['B10','單筆／批次立帳政策','13、28、302–307、329–334',"usable","客戶與供應商可選逐次立帳或截止日後批次月結；出入庫保存政策與到期日，待立帳交易禁止收付款，月結合成帳單並轉列控制科目。","workflows.test.mjs"],
  ['B11','標準零售批發網路與上次價格','13、39–41','usable','客戶政策帶價，專屬價優先，上次價取最近核准訂單，業務可修改草稿價格。','finance.test.mjs'],
  ['B12','客戶與廠商交易歷史','20、32','partial','可查單據與往來；尚缺完整跨模組歷史樹與逐欄報表。'],
- ['B13','Excel 匯入欄位映射範本','15–19、30–31、42–45','partial','已有固定欄位 CSV 預覽及原子匯入；需 XLSX 與可保存欄位映射。'],
+ ['B13','Excel 匯入欄位映射範本','15–19、30–31、42–45','usable','管理員可保存商品、客戶／供應商、期初庫存的來源欄名映射與固定值；純值 XLSX／UTF-8 CSV 預覽、來源雜湊去重、範本修訂與整批原子匯入，不支援公式／巨集或舊 XLS。','master-imports.test.mjs'],
  ['B14','代號更名與帳款重建','22–24、34–35','usable','代號以穩定 ID 關聯；可預覽庫存／帳款來源差異，管理員核對後自動備份、驗證快照與總帳，再原子重建並留痕。','operations.test.mjs'],
  ['B15','客戶業務追蹤','25','usable','可記錄負責業務、聯繫內容及下次聯繫日期。','core.test.mjs'],
  ['B16','期初應收應付','26、37','usable','可輸入來源參考、未結金額與到期日，對應總帳且可後續沖帳。','finance.test.mjs'],
@@ -119,7 +119,7 @@ const groups=[
  ['X01','交易原子性與重送防重複','本公司強化','usable','多列庫存、會計及帳款同成同敗；相同請求不重複過帳。','http.test.mjs'],
  ['X02','並行修改防覆蓋','本公司強化','usable','主檔、草稿及盤點以修訂號阻擋過期修改。','trading.test.mjs'],
  ['X03','不可覆寫流水與一致性檢查','本公司強化','usable','核對存貨、預留、應收付、預收付、票據與費用子帳及借貸。','finance.test.mjs'],
- ['X04','20 人部署及維運','公司需求','partial','尚須 HTTPS、伺服器與備份還原部署、多使用者負載及權限驗收；目前僅本機試行。'],
+ ['X04','20 人部署及維運','公司需求','partial','已具 HTTPS 代理、持久磁碟容器與初始化保護設定，並驗證代理登入、CSRF、公司隔離及重啟保留；正式平台部署、異機災難還原與長時間多人負載仍待驗收。'],
  ['X05','舊系統完整移轉驗收','公司需求','partial','已有 CSV 主檔與庫存及手動期初帳款；尚缺真實資料映射、歷史搬遷與雙軌對帳。'],
  ['X06','操作異動稽核','本公司強化','usable','所有過帳與主要主檔操作留操作者與時間，不可直接刪除稽核。','core.test.mjs'],
  ['X07','借出入及歸還','既有系統需求','usable','可分次歸還、沿用借出成本、借入差異獨立入帳。','core.test.mjs'],
@@ -128,4 +128,4 @@ const groups=[
  ['X10','完整 POS 促銷與會員','原廠現行功能頁擴充',"partial","已具可設定門市／收銀權限、鍵盤掃碼、收據紙、跨門市會員點數、逐列擇優促銷、混合實收／找零、班別核對與退貨點數回復；實體設備、發票與金流 API 整合及真實成功回執仍待服務商與實機驗證。","services-pos.test.mjs"]]]
 ];
 export const capabilities=groups.flatMap(([group,rows])=>rows.map(([id,name,pages,status,acceptance,evidence=''])=>({id,group,name,pages,status,acceptance,evidence,priority:status==='usable'?'驗收保持':group==='電商與物流'||group==='發票'?'P2 外部整合':'P1 核心補齊'})));
-export const capabilityAudit=()=>({source:manualSource,version:'0.4.0',statusLabels:{usable:'可操作（依驗收範圍）',partial:'部分具備',missing:'待建置',external:'需外部整合'},summary:capabilities.reduce((s,r)=>(s[r.status]++,s),{usable:0,partial:0,missing:0,external:0}),rows:capabilities,warning:'未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。'});
+export const capabilityAudit=()=>({source:manualSource,version:'0.4.1',statusLabels:{usable:'可操作（依驗收範圍）',partial:'部分具備',missing:'待建置',external:'需外部整合'},summary:capabilities.reduce((s,r)=>(s[r.status]++,s),{usable:0,partial:0,missing:0,external:0}),rows:capabilities,warning:'未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。'});
