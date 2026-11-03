@@ -7,6 +7,7 @@ import {
   existsSync,
   readdirSync,
   appendFileSync,
+  symlinkSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -44,4 +45,33 @@ test("scheduled backups verify restoration, rotate only managed groups, copy ano
     () => scheduledBackup({ retain: 2, destination: join(scratch, "copy") }),
     /目的地/,
   );
+});
+test("backup rotation accepts a canonical directory alias while preserving other folders", async (t) => {
+  const scratch = mkdtempSync(join(tmpdir(), "erp-backup-alias-")),
+    previous = process.env.ERP_LOCAL_HOME;
+  process.env.ERP_LOCAL_HOME = scratch;
+  t.after(() => {
+    if (previous === undefined) delete process.env.ERP_LOCAL_HOME;
+    else process.env.ERP_LOCAL_HOME = previous;
+    rmSync(scratch, { recursive: true, force: true });
+  });
+  const physical = join(scratch, "physical"),
+    alias = join(scratch, "alias"),
+    e = new ERP(join(physical, "company.sqlite"));
+  e.setup({ username: "admin", password: "backup-alias-test-2026" });
+  e.close();
+  symlinkSync(
+    physical,
+    alias,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  writeFileSync(
+    join(scratch, "company.json"),
+    JSON.stringify({ format: 1, initialized: true, dataDir: alias }),
+  );
+  await scheduledBackup({ retain: 2 });
+  await scheduledBackup({ retain: 2 });
+  await scheduledBackup({ retain: 2 });
+  assert.equal(readdirSync(join(physical, "backups", "scheduled")).length, 2);
+  assert.equal(existsSync(join(physical, "company.sqlite")), true);
 });

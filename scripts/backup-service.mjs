@@ -213,7 +213,10 @@ export async function scheduledBackup({
     for (const old of groups.slice(retain)) {
       try {
         verifyBackup(join(old, "manifest.json"));
-        if (contained(directory, old) && realpathSync(old) === resolve(old))
+        if (
+          contained(directory, old) &&
+          realpathSync(old) === join(realpathSync(directory), basename(old))
+        )
           rmSync(old, { recursive: true });
       } catch {}
     }

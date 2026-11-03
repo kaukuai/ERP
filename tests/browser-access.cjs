@@ -38,7 +38,7 @@ let activeBrowser;
  await tab('preferences');await page.locator('[data-action="completion-form"][data-id="preferences"]').click();
  await page.locator('[name="quantity_digits"]').fill('1');await page.locator('[name="money_digits"]').fill('2');
  await page.locator('[name="input_order"]').selectOption('price,qty,discount_bp');await page.getByRole('button',{name:'預覽／儲存',exact:true}).click();
- await page.waitForFunction(()=>!document.querySelector('#modal-form'));await page.evaluate(()=>newDoc('order'));
+ await page.waitForFunction(()=>!document.querySelector('#modal-form')&&S.data?.user_preferences?.input_order==='price,qty,discount_bp');await page.evaluate(()=>newDoc('order'));
  assert.deepEqual(await page.locator('#doc-lines th').allTextContents(),['商品／交易單位','單價 TWD','數量','折數 %','列稅別／稅率基點','金額','']);await close();
  console.log('PASS saved per-user input sequence changes actual document columns');
  await tab('reports');await page.locator('[data-action="completion-form"][data-id="matrix"]').click();await page.getByRole('button',{name:'查詢',exact:true}).click();
