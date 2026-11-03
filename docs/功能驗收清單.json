@@ -6,7 +6,7 @@
     "reference": "https://www.scribd.com/document/982017657/數碼一號-進銷存系統操作手冊",
     "note": "頁碼以原廠公開 PDF 為準。比對功能行為；不複製廠商程式、版面或操作文字。"
   },
-  "version": "0.4.1",
+  "version": "0.4.2",
   "statusLabels": {
     "usable": "可操作（依驗收範圍）",
     "partial": "部分具備",

@@ -76,7 +76,7 @@ export class ERP {
   number(prefix){return nextNumber(this,prefix);}
   setup(body){
     if(this.get('SELECT id FROM users LIMIT 1')) fail('已完成初始化',409);
-    const hash=hashPassword(body.password),username=txt(body.username,50,true),name=txt(body.name||'系統管理員',80,true),company=txt(body.company||'成祥',100,true);
+    const hash=hashPassword(body.password),username=txt(body.username,50,true),name=txt(body.name||'系統管理員',80,true),company=txt(body.company||'我的工作空間',100,true);
     if(!/^[\w.@-]{3,50}$/.test(username)) fail('帳號需為 3–50 個英數、點、@ 或連字號');
     return this.tx(()=>{
       if(this.get('SELECT id FROM users LIMIT 1')) fail('已完成初始化',409);

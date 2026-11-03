@@ -3,18 +3,18 @@ import { today,addDays } from './core.mjs';
 // Entirely fictional records for a separate demo database. Never used by normal startup.
 export function seedDemo(erp) {
   if(erp.get('SELECT id FROM users LIMIT 1')) return erp.get("SELECT id,username,name,role,active FROM users WHERE username='demo'");
-  const u=erp.setup({username:'demo',password:'Demo-only-'+crypto.randomUUID(),name:'體驗管理員',company:'成祥企業｜示範公司'});
+  const u=erp.setup({username:'demo',password:'Demo-only-'+crypto.randomUUID(),name:'體驗管理員',company:'展示工作空間'});
   const sales=erp.saveUser(u,{username:'sales.demo',name:'陳怡安（示範）',password:'Demo-only-'+crypto.randomUUID(),role:'sales'});
   const salesUser=erp.get("SELECT id,username,name,role,active FROM users WHERE username='sales.demo'");
   erp.saveWarehouse(u,{code:'WH02',name:'台中轉運倉'});erp.saveWarehouse(u,{code:'WH03',name:'展示倉'});
   const partners=[
-    ['C001','青禾生活有限公司','customer','林小姐','台北市（示範地址）'],
-    ['C002','木森選物工作室','customer','張先生','新北市（示範地址）'],
-    ['C003','日常百貨有限公司','customer','王小姐','台中市（示範地址）'],
-    ['C004','向陽空間設計','customer','李先生','桃園市（示範地址）'],
-    ['C005','好日子商行','customer','吳小姐','台南市（示範地址）'],
-    ['V001','合豐製造有限公司','supplier','陳先生','彰化縣（示範地址）'],
-    ['V002','永昇材料有限公司','supplier','蔡小姐','高雄市（示範地址）']
+    ['C001','示範客戶 A','customer','林小姐','台北市（示範地址）'],
+    ['C002','示範客戶 B','customer','張先生','新北市（示範地址）'],
+    ['C003','示範客戶 C','customer','王小姐','台中市（示範地址）'],
+    ['C004','示範客戶 D','customer','李先生','桃園市（示範地址）'],
+    ['C005','示範客戶 E','customer','吳小姐','台南市（示範地址）'],
+    ['V001','示範供應商 A','supplier','陳先生','彰化縣（示範地址）'],
+    ['V002','示範供應商 B','supplier','蔡小姐','高雄市（示範地址）']
   ];
   partners.forEach(([code,name,kind,contact,address])=>erp.savePartner(u,{code,name,kind,contact,address,phone:'02-0000-0000',payment_days:30,credit_limit:kind==='customer'?'500000':'0',owner_id:kind==='customer'?salesUser.id:undefined,notes:'虛構示範資料'}));
   const rows=[
