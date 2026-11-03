@@ -14,7 +14,8 @@ test('new workflow HTTP routes and multi-company authentication isolation',async
   const directory=mkdtempSync(join(tmpdir(),'erp-workflow-http-')),base='http://127.0.0.1:'+port;
   const server=spawn(process.execPath,['src/server.mjs','--demo'],{cwd:new URL('..',import.meta.url),env:serverEnv({ERP_HOST:'127.0.0.1',PORT:String(port),ERP_DB:join(directory,'demo.sqlite')}),stdio:['ignore','pipe','pipe']});let errors='';server.stderr.on('data',data=>errors+=data);server.stdout.resume();
   t.after(async()=>{if(server.exitCode===null){server.kill();await once(server,'exit');}rmSync(directory,{recursive:true,force:true});});
-  for(let attempt=0;attempt<100;attempt++){if(server.exitCode!==null)throw Error(errors);try{if((await fetch(base+'/api/status')).ok)break;}catch{}await setTimeout(50);}
+  let ready=false;for(let attempt=0;attempt<400;attempt++){if(server.exitCode!==null||server.signalCode!==null)throw Error(errors||'server exited before readiness');try{if((await fetch(base+'/api/status')).ok){ready=true;break;}}catch{}await setTimeout(50);}
+  assert.ok(ready,'server did not become ready within 20 seconds: '+errors);
   async function call(path,body,session,company='default',extra={}){
     const headers={'X-ERP-Company':company,...(body===undefined?{}:{'Content-Type':'application/json','X-ERP-Request':'1','X-CSRF-Token':session?.csrf||'','Idempotency-Key':extra.key||crypto.randomUUID(),Origin:base}),...(session?{Cookie:session.cookie}:{}),...extra.headers};
     const response=await fetch(base+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body)}),text=await response.text();
