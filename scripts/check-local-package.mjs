@@ -34,6 +34,7 @@ try{
   await call('/api/products',{sku:'PERSIST-001',name:'永久保存商品',price:'105.01'},auth);
   await call('/api/companies',{slug:'branch',name:'本機分店',username:'admin',password:'local-package-branch-2026'},auth);
   const login=await call('/api/login',{username:'admin',password:'local-package-branch-2026'},{'X-ERP-Company':'branch'}),branchAuth={Cookie:login.headers.get('set-cookie').split(';')[0],'X-CSRF-Token':login.data.csrf,'X-ERP-Company':'branch'};await call('/api/products',{sku:'BRANCH-001',name:'分店永久商品'},branchAuth);
+  const scheduled=JSON.parse((await execute(join(folder,'runtime',nodeName),[join(folder,'app/scripts/backup-service.mjs'),'--retain','2','--destination',join(scratch,'second-drive')],{env})).stdout);assert.equal(scheduled.verified,true);assert.equal(scheduled.databases,2);assert.equal(scheduled.offsite_copied,true);const restored=JSON.parse((await execute(join(folder,'runtime',nodeName),[join(folder,'app/scripts/backup-service.mjs'),'--verify',scheduled.manifest],{env})).stdout);assert.equal(restored.verified,true);
   await stop();
   const config=JSON.parse(readFileSync(join(home,'company.json')));config.pid=process.pid;writeFileSync(join(home,'company.json'),JSON.stringify(config));
   await execute(join(folder,'runtime',nodeName),[join(folder,'app/scripts/local.mjs'),'--backup','--no-browser','--port',String(port)],{env});
@@ -45,5 +46,5 @@ try{
   await stop();unlinkSync(join(home,'data/company.sqlite'));
   await assert.rejects(execute(join(next,'runtime',nodeName),[join(next,'app/scripts/local.mjs'),'--no-browser','--port',String(port)],{env}),error=>/不會建立空庫/.test(error.stderr));assert.equal(existsSync(join(home,'data/company.sqlite')),false);
   assert.equal(existsSync(join(folder,'data')),false);assert.equal(existsSync(join(folder,'app/data')),false);
-  console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,checksums:true,persistentRestart:true,newProgramFolder:true,upgradeBackups:true,multipleCompanies:true,repeatedStart:true,reusedPidHandled:true,missingDatabaseRejected:true,businessDataPackaged:false}));
+  console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,checksums:true,persistentRestart:true,newProgramFolder:true,upgradeBackups:true,scheduledOnlineBackup:true,restorationVerified:true,multipleCompanies:true,repeatedStart:true,reusedPidHandled:true,missingDatabaseRejected:true,businessDataPackaged:false}));
 }finally{await stop().catch(()=>{});rmSync(scratch,{recursive:true,force:true});}

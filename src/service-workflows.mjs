@@ -1,3 +1,4 @@
+import { legacySales } from './access-control.mjs';
 import { permit,has,fail,integer,scaled,ratio,txt,dateValue,addDays,today,now } from './core.mjs';
 import { Trade } from './trade.mjs';
 import { Finance } from './finance.mjs';
@@ -92,7 +93,7 @@ export class ServiceWorkflows {
   }
   print(u,kind,id){const c=kind==='repairs'?this.repair(u,id):this.contract(u,id);return printPage((kind==='repairs'?'維修受理單 ':'寄售／租賃合約 ')+c.no,`<p>往來：${E(c.partner_name)}</p>${kind==='repairs'?`<p>序號：${E(c.serial)}<br>保固至：${E(c.warranty_until||'依來源另行核對')}<br>送修說明：${E(c.description)}<br>診斷：${E(c.diagnosis)}</p>`:`<p>標的：${E(c.sku)} · ${E(c.product_name)}<br>數量：${c.qty/1000} ${E(c.unit)}<br>期間：${E(c.start_date)}–${E(c.end_date)}<br>保管倉：${E(c.holding_warehouse)}<br>備註：${E(c.notes)}</p>`}<p>狀態：${E(c.status)}</p><table><tr><th>時間</th><th>事件</th><th>內容</th></tr>${c.events.map(event=>`<tr><td>${E(event.created_at)}</td><td>${E(event.action)}</td><td>${E(event.detail)}</td></tr>`).join('')}</table>`);}
   data(u){
-    const e=this.e,filter=u.role==='sales'?' WHERE p.owner_id IS NULL OR p.owner_id=?':'',args=u.role==='sales'?[u.id]:[];
+    const e=this.e,filter=legacySales(u)?' WHERE p.owner_id IS NULL OR p.owner_id=?':'',args=legacySales(u)?[u.id]:[];
     return {service_policy:this.policy(),repair_tickets:e.all(`SELECT t.*,p.name partner_name FROM repair_tickets t JOIN partners p ON p.id=t.partner_id${filter} ORDER BY t.id DESC LIMIT 1000`,...args),service_contracts:e.all(`SELECT c.*,p.name partner_name,pr.name product_name FROM service_contracts c JOIN partners p ON p.id=c.partner_id JOIN products pr ON pr.id=c.product_id${filter} ORDER BY c.id DESC LIMIT 1000`,...args)};
   }
 }

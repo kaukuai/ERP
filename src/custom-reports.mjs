@@ -1,3 +1,4 @@
+import { legacySales } from './access-control.mjs';
 import { permit,has,fail,integer,txt,dateValue } from './core.mjs';
 import { escapeHTML as E } from './print.mjs';
 import { printPage } from './operations.mjs';
@@ -35,7 +36,7 @@ export class CustomReports {
   run(u,id,filters={},printing=false){
     const r=this.definition(u,id,printing);
     if(!has(u,'cost')&&r.columns.some(c=>['cost','value'].includes(c.key)))fail('此報表包含需要成本權限的欄位',403);
-    if(r.dataset==='fulfilments'&&u.role==='sales')fail('沒有出入庫報表權限',403);
+    if(r.dataset==='fulfilments'&&legacySales(u))fail('沒有出入庫報表權限',403);
     const data=this.e.bootstrap(u);let rows=data[r.dataset]||[];
     if(filters.from||filters.to){if(!['documents','fulfilments'].includes(r.dataset))fail('此資料集不支援日期查詢');const from=dateValue(filters.from,'0001-01-01'),to=dateValue(filters.to,'9999-12-31');if(from>to)fail('起日不得晚於迄日');rows=rows.filter(row=>row.date>=from&&row.date<=to);}
     if(filters.kind)rows=rows.filter(row=>row.kind===filters.kind);

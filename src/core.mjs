@@ -13,11 +13,15 @@ import { migrateV9 } from './migrate-v9.mjs';
 import { migrateV10 } from './migrate-v10.mjs';
 import { migrateV11 } from './migrate-v11.mjs';
 import { migrateV12 } from './migrate-v12.mjs';
+import { migrateV14 } from './migrate-v14.mjs';
+import { migrateV13 } from './migrate-v13.mjs';
+import { AccessControl,accessContext,detailedHas,legacySales } from './access-control.mjs';
 import { schemaVersion } from './schema-version.mjs';
 import { withInventorySelection,prepareLotMove,commitLotMove } from './inventory-tracking.mjs';
 import { recordOpenItem,itemAccount } from './billing.mjs';
 import { Trade,baseQuantity } from './trade.mjs';
 import { nextNumber } from './numbering.mjs';
+import { enforceStandardCost } from './costing.mjs';
 import { FUND_ACCOUNTS } from './rules.mjs';
 
 export class DomainError extends Error {
@@ -50,8 +54,8 @@ const ACCESS={
   approve:['admin','manager'], stock:['admin','manager','warehouse'], finance:['admin','manager','finance'], admin:['admin'],
   cost:['admin','manager','finance'], all:['admin','manager','sales','warehouse','finance','viewer']
 };
-export function permit(user,action) { if(!user||!ACCESS[action]?.includes(user.role)) fail('此帳號沒有這項操作權限',403); }
-export const has=(u,a)=>Boolean(u&&ACCESS[a]?.includes(u.role));
+export function permit(user,action) { if(!has(user,action)) fail('此帳號沒有這項操作權限',403); }
+export const has=(u,a)=>detailedHas(u,a)??Boolean(u&&ACCESS[a]?.includes(u.role));
 
 export class ERP {
   constructor(path=':memory:') {
@@ -63,12 +67,12 @@ export class ERP {
     this.db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').run('schema_version','1');
     const accounts=[['1000','銀行及現金','asset'],['1100','應收帳款','asset'],['1200','存貨','asset'],['1250','借出存貨','asset'],['1300','進項稅額','asset'],['2000','應付帳款','liability'],['2100','銷項稅額','liability'],['2200','借入存貨義務','liability'],['3000','期初權益','equity'],['4000','銷貨收入','revenue'],['5000','銷貨成本','expense'],['5100','存貨調整損益','expense']];
     for(const a of accounts) this.db.prepare('INSERT OR IGNORE INTO accounts VALUES(?,?,?)').run(...a);
-    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);
+    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);migrateV13(this.db);migrateV14(this.db);this.access=new AccessControl(this);
     }catch(error){this.db.close();throw error;}
   }
   close(){this.db.close();}
-  get(sql,...args){return this.db.prepare(sql).get(...args);}
-  all(sql,...args){return this.db.prepare(sql).all(...args);}
+  get(sql,...args){const context=accessContext.getStore(),row=this.db.prepare(this.access?.rewrite(sql,context?.reading?context.policy:null)||sql).get(...args);return this.access?.sourceRows(sql,row,context)??row;}
+  all(sql,...args){const context=accessContext.getStore(),rows=this.db.prepare(this.access?.rewrite(sql,context?.reading?context.policy:null)||sql).all(...args);return this.access?.sourceRows(sql,rows,context)??rows;}
   run(sql,...args){return this.db.prepare(sql).run(...args);}
   tx(fn){if(this.inTx)return fn();this.db.exec('BEGIN IMMEDIATE');this.inTx=true;try{const result=fn();this.db.exec('COMMIT');return result;}catch(e){this.db.exec('ROLLBACK');throw e;}finally{this.inTx=false;}}
   log(user,action,entity,id,detail={}){this.run('INSERT INTO audit(actor_id,action,entity,entity_id,detail,created_at) VALUES(?,?,?,?,?,?)',user?.id??null,action,entity,String(id),JSON.stringify(detail),now());}
@@ -87,11 +91,11 @@ export class ERP {
       this.log(user,'setup','company',1,{company}); return user;
     });
   }
-  user(id){return this.get('SELECT id,username,name,role,active FROM users WHERE id=?',id);}
+  user(id){return this.access.hydrate(this.get('SELECT id,username,name,role,active FROM users WHERE id=?',id));}
   saveUser(u,b){permit(u,'admin');return this.tx(()=>{
     const id=b.id?integer(b.id,1):0,role=txt(b.role,20,true);if(!ROLES.includes(role))fail('角色錯誤');
     const name=txt(b.name,80,true),active=b.active===false?0:1;
-    if(id){const old=this.user(id);if(!old)fail('找不到帳號',404);if(old.role==='admin'&&old.active&&(!active||role!=='admin')&&this.get("SELECT count(*) n FROM users WHERE role='admin' AND active=1").n<=1)fail('至少需要一位啟用的管理員');
+    if(id){const old=this.user(id);if(old&&this.access.policy(old).superuser&&(!active||role!=='admin')&&!this.access.one("SELECT u.id FROM users u LEFT JOIN access_profiles p ON p.user_id=u.id WHERE u.active=1 AND u.role='admin' AND (p.superuser=1 OR p.user_id IS NULL) AND u.id<>?",id))fail('至少保留一位啟用的完整權限管理員');if(!old)fail('找不到帳號',404);if(old.role==='admin'&&old.active&&(!active||role!=='admin')&&this.get("SELECT count(*) n FROM users WHERE role='admin' AND active=1").n<=1)fail('至少需要一位啟用的管理員');
       this.run('UPDATE users SET name=?,role=?,active=? WHERE id=?',name,role,active,id);
       if(b.password)this.run('UPDATE users SET password=? WHERE id=?',hashPassword(b.password),id);
       this.run('DELETE FROM sessions WHERE user_id=?',id);
@@ -105,20 +109,20 @@ export class ERP {
     for(const [k,v] of Object.entries(fields))this.run('INSERT OR REPLACE INTO settings VALUES(?,?)',k,v);
     this.log(u,'update','settings',1,fields);return this.settings();
   });}
-  checkPeriod(d=today()){const closed=this.settings().closed_until;if(closed&&d<=closed)fail('此日期已結帳，不能新增過帳資料',409);}
-  partner(u,id,kind){const p=this.get('SELECT * FROM partners WHERE id=? AND active=1',integer(id,1));if(!p)fail('找不到啟用的客戶／供應商',404);if(kind&&p.kind!==kind&&p.kind!=='both')fail('往來對象類型錯誤');if(u.role==='sales'&&p.owner_id&&p.owner_id!==u.id)fail('只能存取自己負責的客戶',403);return p;}
+  checkPeriod(d=today(),module='all'){const moduleDate=this.get('SELECT max(closed_until) date FROM module_closings WHERE module=?',module)?.date;if(moduleDate&&d<=moduleDate)fail('此模組日期已結帳，請由完整權限管理員記錄原因後重開',409);const closed=this.settings().closed_until;if(closed&&d<=closed)fail('此日期已結帳，不能新增過帳資料',409);}
+  partner(u,id,kind){const p=this.get('SELECT * FROM partners WHERE id=? AND active=1',integer(id,1));if(!p)fail('找不到啟用的客戶／供應商',404);if(kind&&p.kind!==kind&&p.kind!=='both')fail('往來對象類型錯誤');if(legacySales(u)&&p.owner_id&&p.owner_id!==u.id)fail('只能存取自己負責的客戶',403);return p;}
   savePartner(u,b){permit(u,'partners');return this.tx(()=>{
     const id=b.id?integer(b.id,1):0,old=id?this.partner(u,id):null;
-    const kind=txt(b.kind||'customer',20);if(!['customer','supplier','both'].includes(kind))fail('往來對象類型錯誤');if(u.role==='sales'&&kind!=='customer')fail('業務只能建立客戶',403);
+    const kind=txt(b.kind||'customer',20);if(!['customer','supplier','both'].includes(kind))fail('往來對象類型錯誤');if(legacySales(u)&&kind!=='customer')fail('業務只能建立客戶',403);
     if(old&&integer(b.version,1)!==old.version)fail('資料已被其他人修改，請重新載入',409);
-    const owner=u.role==='sales'?u.id:(b.owner_id?integer(b.owner_id,1):null);if(owner&&!this.get('SELECT id FROM users WHERE id=? AND active=1',owner))fail('負責人不存在');
+    const owner=legacySales(u)?u.id:(b.owner_id?integer(b.owner_id,1):null);if(owner&&!this.get('SELECT id FROM users WHERE id=? AND active=1',owner))fail('負責人不存在');
     const vals=[txt(b.code,40,true),txt(b.name,100,true),kind,txt(b.contact,80),txt(b.phone,60),txt(b.email,100),txt(b.tax_id,20),txt(b.address,300),integer(b.payment_days??30,0,365),scaled(b.credit_limit??'0'),owner,txt(b.notes,2000)];
-    if(u.role==='sales'){vals[8]=old?.payment_days??30;vals[9]=old?.credit_limit??0;}
+    if(legacySales(u)){vals[8]=old?.payment_days??30;vals[9]=old?.credit_limit??0;}
     let rid=id;if(id)this.run('UPDATE partners SET code=?,name=?,kind=?,contact=?,phone=?,email=?,tax_id=?,address=?,payment_days=?,credit_limit=?,owner_id=?,notes=?,version=version+1 WHERE id=?',...vals,id);
     else rid=Number(this.run('INSERT INTO partners(code,name,kind,contact,phone,email,tax_id,address,payment_days,credit_limit,owner_id,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',...vals).lastInsertRowid);
-    const mode=u.role==='sales'?(old?.payment_mode||'days'):(b.payment_mode??old?.payment_mode??'days'),policy=u.role==='sales'?(old?.price_policy||'standard'):(b.price_policy??old?.price_policy??'standard'),cutoff=u.role==='sales'?(old?.closing_day||31):integer(b.closing_day??old?.closing_day??31,1,31);
+    const mode=legacySales(u)?(old?.payment_mode||'days'):(b.payment_mode??old?.payment_mode??'days'),policy=legacySales(u)?(old?.price_policy||'standard'):(b.price_policy??old?.price_policy??'standard'),cutoff=legacySales(u)?(old?.closing_day||31):integer(b.closing_day??old?.closing_day??31,1,31);
     if(!['days','month_end','cutoff'].includes(mode)||!['standard','retail','wholesale','online','last'].includes(policy))fail('月結條件或價格政策錯誤');
-    const billing=u.role==='sales'?(old?.billing_policy||'individual'):(b.billing_policy??old?.billing_policy??'individual');
+    const billing=legacySales(u)?(old?.billing_policy||'individual'):(b.billing_policy??old?.billing_policy??'individual');
     if(!['individual','batch'].includes(billing)||(billing==='batch'&&mode==='days'))fail('批次月結請設定月底或指定截止日');
     this.run('UPDATE partners SET payment_mode=?,closing_day=?,price_policy=?,billing_policy=? WHERE id=?',mode,cutoff,policy,billing,rid);
     this.log(u,id?'update':'create','partner',rid,{code:vals[0],name:vals[1]});return this.get('SELECT * FROM partners WHERE id=?',rid);
@@ -139,21 +143,21 @@ export class ERP {
   warehouse(id){const w=this.get('SELECT * FROM warehouses WHERE id=? AND active=1',integer(id,1));if(!w)fail('倉庫不存在',404);return w;}
   stock(p,w){this.run('INSERT OR IGNORE INTO stocks(product_id,warehouse_id) VALUES(?,?)',p,w);return this.get('SELECT * FROM stocks WHERE product_id=? AND warehouse_id=?',p,w);}
   stockMove(u,p,w,q,value,kind,ref,notes='',lotOptions){
-    this.checkPeriod();if(!this.product(p).track_stock)fail('非庫存商品不能執行庫存作業');const s=this.stock(p,w);if(s.qty+q<0||s.qty+q<s.reserved)fail('庫存不足或已被其他訂單預留',409);if(s.value+value<0)fail('庫存金額不足',409);integer(s.qty+q);integer(s.value+value);
+    this.checkPeriod(today(),'inventory');if(!this.product(p).track_stock)fail('非庫存商品不能執行庫存作業');const s=this.stock(p,w);if(s.qty+q<0||s.qty+q<s.reserved)fail('庫存不足或已被其他訂單預留',409);if(s.value+value<0)fail('庫存金額不足',409);integer(s.qty+q);integer(s.value+value);
     const lots=prepareLotMove(this,p,w,q,kind,ref,lotOptions);
     this.run('UPDATE stocks SET qty=qty+?,value=value+? WHERE product_id=? AND warehouse_id=?',q,value,p,w);
-    const no=this.number('SM');const move=this.run('INSERT INTO stock_moves(no,product_id,warehouse_id,qty,value,kind,reference,notes,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',no,p,w,q,value,kind,ref,notes,u.id,now());commitLotMove(this,u,Number(move.lastInsertRowid),ref,lots);return no;
+    const no=this.number('SM');const move=this.run('INSERT INTO stock_moves(no,product_id,warehouse_id,qty,value,kind,reference,notes,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',no,p,w,q,value,kind,ref,notes,u.id,now());commitLotMove(this,u,Number(move.lastInsertRowid),ref,lots);enforceStandardCost(this,u,p,w,ref);return no;
   }
   costOut(p,w,q){const s=this.stock(p,w);if(q>s.qty-s.reserved)fail('可用庫存不足',409);return q===s.qty?s.value:ratio(s.value,q,s.qty);}
   journal(u,memo,reference,entries,d=today()){
-    this.checkPeriod(d);const lines=entries.filter(x=>x[1]>0||x[2]>0);if(lines.length===0)return null;
+    this.checkPeriod(d,'finance');const lines=entries.filter(x=>x[1]>0||x[2]>0);if(lines.length===0)return null;
     let debit=0,credit=0;for(const l of lines){integer(l[1]);integer(l[2]);debit+=l[1];credit+=l[2];}if(debit!==credit)fail('分錄借貸不平衡',500);
     const id=Number(this.run('INSERT INTO journals(no,date,memo,reference,created_by,created_at) VALUES(?,?,?,?,?,?)',this.number('JV'),d,memo,reference,u.id,now()).lastInsertRowid);
     for(const l of lines)this.run('INSERT INTO journal_lines(journal_id,account,debit,credit) VALUES(?,?,?,?)',id,...l);return id;
   }
   doc(u,id){
     const d=this.get('SELECT d.*,p.name partner_name,w.name warehouse_name,us.name owner_name FROM documents d JOIN partners p ON p.id=d.partner_id JOIN warehouses w ON w.id=d.warehouse_id JOIN users us ON us.id=d.owner_id WHERE d.id=?',integer(id,1));
-    if(!d)fail('單據不存在',404);if(u.role==='sales'&&(d.owner_id!==u.id||d.kind==='purchase'))fail('只能存取自己的銷售單據',403);
+    if(!d)fail('單據不存在',404);if(legacySales(u)&&(d.owner_id!==u.id||d.kind==='purchase'))fail('只能存取自己的銷售單據',403);
     d.lines=this.all('SELECT * FROM document_lines WHERE document_id=? ORDER BY id',d.id);d.fulfilments=this.all('SELECT * FROM fulfilments WHERE document_id=? ORDER BY id',d.id);
     if(d.kind==='order')for(const l of d.lines)l.procured_qty=this.get("SELECT COALESCE(sum(dl.base_qty-dl.closed_qty*dl.unit_ratio/1000),0) n FROM document_links lk JOIN documents po ON po.id=lk.target_id JOIN document_lines dl ON dl.document_id=po.id WHERE lk.source_id=? AND po.status<>'cancelled' AND dl.product_id=?",d.id,l.product_id).n*1000/l.unit_ratio;
     return d;
@@ -162,7 +166,7 @@ export class ERP {
   totals(amount,mode,bp){if(mode==='none')return {net:amount,tax:0,total:amount};if(mode==='inclusive'){const net=ratio(amount,10000,10000+bp);return {net,tax:amount-net,total:amount};}const tax=ratio(amount,bp,10000);return {net:amount,tax,total:amount+tax};}
   saveDoc(u,b){return new Trade(this).saveDoc(u,b);}
   transition(u,id,action,b={}){return this.tx(()=>{
-    const d=this.doc(u,id);if(b.version!==undefined&&integer(b.version,1)!==d.version)fail('單據已更新，請重新載入',409);
+    const d=this.doc(u,id);this.checkPeriod(d.date,'trade');if(b.version!==undefined&&integer(b.version,1)!==d.version)fail('單據已更新，請重新載入',409);
     let status=d.status;
     if(action==='submit'){permit(u,d.kind==='purchase'?'buy':'sell');if(status!=='draft')fail('只有草稿可以送審',409);status='pending';}
     else if(action==='approve'){
@@ -190,7 +194,7 @@ export class ERP {
     for(const p of this.all('SELECT p.id,COALESCE(s.qty,0) qty FROM products p LEFT JOIN stocks s ON s.product_id=p.id AND s.warehouse_id=? WHERE p.active=1 AND p.track_stock=1',w.id))this.run('INSERT INTO inventory_count_lines(count_id,product_id,expected_qty,actual_qty) VALUES(?,?,?,?)',id,p.id,p.qty,p.qty);
     this.log(u,'create','inventory_count',id,{warehouse_id:w.id,snapshot});return this.count(u,id);
   });}
-  count(u,id){if(u.role==='sales')fail('沒有盤點權限',403);const c=this.get('SELECT c.*,w.name warehouse_name FROM inventory_counts c JOIN warehouses w ON w.id=c.warehouse_id WHERE c.id=?',integer(id,1));if(!c)fail('盤點單不存在',404);c.lines=this.all('SELECT l.*,p.sku,p.name,p.unit FROM inventory_count_lines l JOIN products p ON p.id=l.product_id WHERE l.count_id=? ORDER BY p.sku',c.id);return c;}
+  count(u,id){if(legacySales(u))fail('沒有盤點權限',403);const c=this.get('SELECT c.*,w.name warehouse_name FROM inventory_counts c JOIN warehouses w ON w.id=c.warehouse_id WHERE c.id=?',integer(id,1));if(!c)fail('盤點單不存在',404);c.lines=this.all('SELECT l.*,p.sku,p.name,p.unit FROM inventory_count_lines l JOIN products p ON p.id=l.product_id WHERE l.count_id=? ORDER BY p.sku',c.id);return c;}
   saveCount(u,id,b){permit(u,'stock');return this.tx(()=>{
     const c=this.count(u,id);if(c.status!=='draft')fail('只能編輯草稿盤點單',409);if(integer(b.version,1)!==c.version)fail('盤點單已更新，請重新載入',409);if(!Array.isArray(b.lines)||b.lines.length!==c.lines.length)fail('請提供完整的盤點明細');const seen=new Set();
     for(const r of b.lines){const lid=integer(r.line_id,1);if(seen.has(lid)||!c.lines.some(l=>l.id===lid))fail('盤點明細重複或不屬於本單');seen.add(lid);this.run('UPDATE inventory_count_lines SET actual_qty=? WHERE id=?',scaled(r.actual_qty,3),lid);}
@@ -203,7 +207,7 @@ export class ERP {
     this.journal(u,'庫存盤點差異',c.no,[['1200',positive,0],['5100',0,positive],['5100',negative,0],['1200',0,negative]]);this.run("UPDATE inventory_counts SET status='posted',version=version+1,posted_at=? WHERE id=?",now(),c.id);this.log(u,'post','inventory_count',c.id,{positive,negative});return this.count(u,c.id);
   });}
   cancelCount(u,id,b){permit(u,'approve');return this.tx(()=>{const c=this.count(u,id);if(c.status!=='draft')fail('只能取消草稿盤點單',409);if(integer(b.version,1)!==c.version)fail('盤點單已更新',409);txt(b.reason,500,true);this.run("UPDATE inventory_counts SET status='cancelled',version=version+1 WHERE id=?",c.id);this.log(u,'cancel','inventory_count',c.id,{reason:b.reason});return {ok:true};});}
-  replenishment(u){if(u.role==='sales')fail('無權存取採購建議',403);return this.all("SELECT p.id product_id,p.sku,p.name,p.unit,p.safety_qty,p.supplier_id,pa.name supplier_name,COALESCE((SELECT sum(s.qty-s.reserved) FROM stocks s WHERE s.product_id=p.id),0) available_qty,COALESCE((SELECT sum((l.qty-l.done_qty-l.closed_qty)*l.unit_ratio/1000) FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE l.product_id=p.id AND d.kind='purchase' AND d.status IN ('approved','partial')),0) incoming_qty FROM products p LEFT JOIN partners pa ON pa.id=p.supplier_id WHERE p.active=1 AND p.track_stock=1 ORDER BY p.sku").map(r=>({...r,suggested_qty:Math.max(0,r.safety_qty-r.available_qty-r.incoming_qty)})).filter(r=>r.available_qty<r.safety_qty);}
+  replenishment(u){if(legacySales(u))fail('無權存取採購建議',403);return this.all("SELECT p.id product_id,p.sku,p.name,p.unit,p.safety_qty,p.supplier_id,pa.name supplier_name,COALESCE((SELECT sum(s.qty-s.reserved) FROM stocks s WHERE s.product_id=p.id),0) available_qty,COALESCE((SELECT sum((l.qty-l.done_qty-l.closed_qty)*l.unit_ratio/1000) FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE l.product_id=p.id AND d.kind='purchase' AND d.status IN ('approved','partial')),0) incoming_qty FROM products p LEFT JOIN partners pa ON pa.id=p.supplier_id WHERE p.active=1 AND p.track_stock=1 ORDER BY p.sku").map(r=>({...r,suggested_qty:(()=>{const policy=this.get('SELECT * FROM replenishment_policies WHERE product_id=?',r.product_id);const raw=Math.max(0,(policy?.target_qty??r.safety_qty)-r.available_qty-r.incoming_qty);return raw?policy?Math.ceil(Math.max(raw,policy.min_order_qty)/policy.multiple_qty)*policy.multiple_qty:raw:0;})()})).filter(r=>r.available_qty<r.safety_qty);}
   fulfil(u,id,b){return withInventorySelection(this,{lots:b.lots},()=>new Trade(this).fulfil(u,id,b));}
   fulfilLegacy(u,id,b){permit(u,'stock');return this.tx(()=>{
     this.checkPeriod();const d=this.doc(u,id);if(!['order','purchase'].includes(d.kind)||!['approved','partial'].includes(d.status))fail('請先核准訂單或採購單',409);
@@ -287,7 +291,7 @@ export class ERP {
   activity(u,b){permit(u,'partners');return this.tx(()=>{this.partner(u,b.partner_id,'customer');const id=Number(this.run('INSERT INTO activities(partner_id,title,notes,next_date,owner_id,created_at) VALUES(?,?,?,?,?,?)',integer(b.partner_id,1),txt(b.title,150,true),txt(b.notes,2000),b.next_date?dateValue(b.next_date):'',u.id,now()).lastInsertRowid);this.log(u,'create','activity',id);return {id};});}
   manualJournal(u,b){permit(u,'finance');return this.tx(()=>{if(!Array.isArray(b.lines)||b.lines.length<2||b.lines.length>100)fail('請輸入 2–100 筆分錄');const lines=b.lines.map(l=>{const code=txt(l.account,20,true);if(!this.get('SELECT code FROM accounts WHERE code=?',code))fail('科目不存在');if(['1100','1110','2005','1105','1150','1200','1250','1400','2000','2010','2200','2300','2400','2500'].includes(code)||this.get('SELECT id FROM bank_accounts WHERE gl_code=?',code))fail('控制科目須透過應收付／庫存流程過帳');const d=scaled(l.debit||'0'),c=scaled(l.credit||'0');if((d>0)===(c>0))fail('每列只能借方或貸方');return [code,d,c];});const no=this.number('MJ'),id=this.journal(u,txt(b.memo,500,true),no,lines,dateValue(b.date));this.log(u,'manual_journal','journal',id);return {id,no};});}
   bootstrap(u){
-    const sales=u.role==='sales',cost=has(u,'cost'),where=sales?'WHERE (p.owner_id IS NULL OR p.owner_id=?) AND p.kind IN (\'customer\',\'both\')':'',args=sales?[u.id]:[];
+    const sales=legacySales(u),cost=has(u,'cost'),where=sales?'WHERE (p.owner_id IS NULL OR p.owner_id=?) AND p.kind IN (\'customer\',\'both\')':'',args=sales?[u.id]:[];
     const partners=this.all(`SELECT p.*,us.name owner_name FROM partners p LEFT JOIN users us ON us.id=p.owner_id ${where} ORDER BY p.code`,...args);
     const products=this.all('SELECT * FROM products WHERE active=1 ORDER BY sku').map(p=>{if(!cost){delete p.cost;delete p.supplier_id;}return p;});
     const stocks=this.all('SELECT s.*,p.sku,p.name,p.unit,p.safety_qty,w.name warehouse_name FROM stocks s JOIN products p ON p.id=s.product_id JOIN warehouses w ON w.id=s.warehouse_id ORDER BY p.sku,w.code').map(s=>{if(!cost)delete s.value;return s;});
@@ -299,16 +303,16 @@ export class ERP {
     if(!sales){data.inventory_counts=this.all('SELECT c.*,w.name warehouse_name FROM inventory_counts c JOIN warehouses w ON w.id=c.warehouse_id ORDER BY c.id DESC LIMIT 500');data.replenishment=this.replenishment(u);data.document_links=this.all('SELECT l.*,s.no source_no,t.no target_no,t.status target_status FROM document_links l JOIN documents s ON s.id=l.source_id JOIN documents t ON t.id=l.target_id');}
     if(cost){data.open_items=this.all('SELECT o.*,p.name partner_name,f.no source_no,d.no document_no FROM open_items o JOIN partners p ON p.id=o.partner_id JOIN fulfilments f ON f.id=o.fulfilment_id JOIN documents d ON d.id=f.document_id WHERE o.billing_state=\'posted\' ORDER BY o.id DESC');data.payments=this.all('SELECT pay.*,p.name partner_name,o.kind FROM payments pay JOIN open_items o ON o.id=pay.open_item_id JOIN partners p ON p.id=o.partner_id ORDER BY pay.id DESC LIMIT 1000');data.accounts=this.all('SELECT a.*,COALESCE(sum(l.debit),0) debit,COALESCE(sum(l.credit),0) credit FROM accounts a LEFT JOIN journal_lines l ON l.account=a.code GROUP BY a.code ORDER BY a.code');data.journals=this.all('SELECT j.*,COALESCE((SELECT sum(debit) FROM journal_lines WHERE journal_id=j.id),0) amount FROM journals j ORDER BY id DESC LIMIT 1000');data.sales_report=this.all("SELECT p.name partner_name,us.name owner_name,substr(f.date,1,7) month,sum(f.net-COALESCE(r.net,0)) revenue,sum(f.cost-COALESCE(r.cost,0)) cost FROM fulfilments f JOIN documents d ON d.id=f.document_id JOIN partners p ON p.id=d.partner_id JOIN users us ON us.id=d.owner_id LEFT JOIN (SELECT fulfilment_id,sum(net) net,sum(cost) cost FROM returns GROUP BY fulfilment_id) r ON r.fulfilment_id=f.id WHERE f.kind='shipment' GROUP BY p.id,us.id,substr(f.date,1,7)");}
     if(has(u,'approve'))data.audit=this.all('SELECT a.*,u.name actor_name FROM audit a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 500');
-    if(u.role==='admin')data.users=this.all('SELECT id,username,name,role,active,created_at FROM users ORDER BY id');return data;
+    if(has(u,'admin'))data.users=this.all('SELECT id,username,name,role,active,created_at FROM users ORDER BY id');return data;
   }
-  fulfilment(u,id){if(u.role==='sales')fail('無權存取出入庫資料',403);const f=this.get('SELECT * FROM fulfilments WHERE id=?',integer(id,1));if(!f)fail('單據不存在',404);this.doc(u,f.document_id);f.lines=this.all('SELECT f.*,d.sku,d.name,d.unit FROM fulfilment_lines f JOIN document_lines d ON d.id=f.document_line_id WHERE f.fulfilment_id=?',f.id).map(l=>{if(!has(u,'cost')){delete l.cost;if(f.kind==='receipt')for(const key of ['amount','net','tax','total'])delete l[key];}return l;});if(!has(u,'cost')){delete f.cost;if(f.kind==='receipt')for(const key of ['net','tax','total'])delete f[key];}return f;}
+  fulfilment(u,id){if(legacySales(u))fail('無權存取出入庫資料',403);const f=this.get('SELECT * FROM fulfilments WHERE id=?',integer(id,1));if(!f)fail('單據不存在',404);this.doc(u,f.document_id);f.lines=this.all('SELECT f.*,d.sku,d.name,d.unit FROM fulfilment_lines f JOIN document_lines d ON d.id=f.document_line_id WHERE f.fulfilment_id=?',f.id).map(l=>{if(!has(u,'cost')){delete l.cost;if(f.kind==='receipt')for(const key of ['amount','net','tax','total'])delete l[key];}return l;});if(!has(u,'cost')){delete f.cost;if(f.kind==='receipt')for(const key of ['net','tax','total'])delete f[key];}return f;}
   journalDetail(u,id){permit(u,'finance');const j=this.get('SELECT * FROM journals WHERE id=?',integer(id,1));if(!j)fail('傳票不存在',404);return {...j,lines:this.all('SELECT l.*,a.name FROM journal_lines l JOIN accounts a ON a.code=l.account WHERE l.journal_id=?',j.id)};}
   integrity(u){permit(u,'admin');const problems=[];
     const stockDiff=this.all('SELECT s.product_id,s.warehouse_id,s.qty,s.value,COALESCE(sum(m.qty),0) ledger_qty,COALESCE(sum(m.value),0) ledger_value FROM stocks s LEFT JOIN stock_moves m ON m.product_id=s.product_id AND m.warehouse_id=s.warehouse_id GROUP BY s.product_id,s.warehouse_id HAVING s.qty<>COALESCE(sum(m.qty),0) OR s.value<>COALESCE(sum(m.value),0)');if(stockDiff.length)problems.push({type:'stock_ledger',rows:stockDiff});
     const reserve=this.all("SELECT s.product_id,s.warehouse_id,s.reserved,COALESCE((SELECT sum((l.qty-l.done_qty-l.closed_qty)*l.unit_ratio/1000) FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE l.product_id=s.product_id AND d.warehouse_id=s.warehouse_id AND d.kind='order' AND l.track_stock=1 AND d.status IN ('approved','partial')),0) expected FROM stocks s WHERE reserved<>COALESCE((SELECT sum((l.qty-l.done_qty-l.closed_qty)*l.unit_ratio/1000) FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE l.product_id=s.product_id AND d.warehouse_id=s.warehouse_id AND d.kind='order' AND l.track_stock=1 AND d.status IN ('approved','partial')),0)");if(reserve.length)problems.push({type:'reservations',rows:reserve});
     const journals=this.all('SELECT journal_id,sum(debit)-sum(credit) difference FROM journal_lines GROUP BY journal_id HAVING sum(debit)<>sum(credit)');if(journals.length)problems.push({type:'journals',rows:journals});
     const balance=code=>this.get('SELECT COALESCE(sum(debit-credit),0) n FROM journal_lines WHERE account=?',code).n;
-    const control=[['inventory',balance('1200'),this.get('SELECT COALESCE(sum(value),0) n FROM stocks').n],...['receivable','payable'].map(k=>[k,(k==='receivable'?1:-1)*balance(k==='receivable'?'1100':'2000'),this.get('SELECT COALESCE(sum(amount-paid),0) n FROM open_items WHERE kind=? AND billing_state=\'posted\'',k).n+this.get('SELECT COALESCE(sum(amount-paid),0) n FROM opening_items WHERE kind=?',k).n]),...Object.entries(FUND_ACCOUNTS).map(([k,a])=>[k,(k.startsWith('customer')?-1:1)*balance(a),this.get('SELECT COALESCE(sum(amount-applied-refunded),0) n FROM funds WHERE kind=?',k).n]),...['receivable','payable'].map(k=>['bill_'+k,(k==='receivable'?1:-1)*balance(k==='receivable'?'1105':'2010'),this.get("SELECT COALESCE(sum(amount),0) n FROM bills WHERE kind=? AND status IN ('received','deposited','issued','delivered')",k).n]),['expenses',-balance('2500'),this.get('SELECT COALESCE(sum(total-paid),0) n FROM expenses').n]];
+    const control=[['inventory',balance('1200'),this.get('SELECT COALESCE(sum(value),0) n FROM stocks').n],...['receivable','payable'].map(k=>[k,(k==='receivable'?1:-1)*balance(k==='receivable'?'1100':'2000'),this.get('SELECT COALESCE(sum(amount-paid),0) n FROM open_items WHERE kind=? AND billing_state=\'posted\'',k).n+this.get('SELECT COALESCE(sum(amount-paid),0) n FROM opening_items WHERE kind=?',k).n]),...Object.entries(FUND_ACCOUNTS).map(([k,a])=>[k,(k.startsWith('customer')?-1:1)*balance(a),this.get('SELECT COALESCE(sum(amount-applied-refunded-canceled),0) n FROM funds WHERE kind=?',k).n]),...['receivable','payable'].map(k=>['bill_'+k,(k==='receivable'?1:-1)*balance(k==='receivable'?'1105':'2010'),this.get("SELECT COALESCE(sum(amount),0) n FROM bills WHERE kind=? AND status IN ('received','deposited','issued','delivered')",k).n]),['expenses',-balance('2500'),this.get('SELECT COALESCE(sum(total-paid),0) n FROM expenses').n]];
     for(const [kind,account,sign] of [['receivable','1110',1],['payable','2005',-1]])control.push(['pending_'+kind,sign*balance(account),this.get("SELECT COALESCE(sum(amount-paid),0) n FROM open_items WHERE kind=? AND billing_state='pending'",kind).n]);
     for(const [kind,account,sign] of [['receivable','1105',1],['payable','2010',-1]]){const c=control.find(row=>row[0]==='bill_'+kind);c[2]+=this.get("SELECT COALESCE(sum(amount),0) n FROM nontrade_bills WHERE kind=? AND status IN ('received','deposited','issued','delivered')",kind).n;}
     for(const [type,ledger,subsidiary] of control)if(ledger!==subsidiary)problems.push({type,ledger,subsidiary});

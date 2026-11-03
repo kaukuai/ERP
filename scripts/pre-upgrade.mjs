@@ -14,21 +14,12 @@ for(let i=0;i<args.length;i++){
 }
 if(!existsSync(sourcePath))throw Error('Source database does not exist; no empty replacement will be created');
 const jobs=[sourcePath];
-if(allCompanies){
-  const source=new DatabaseSync(sourcePath,{readOnly:true});
-  try{
-    if(source.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='company_catalog'").get())for(const company of source.prepare('SELECT filename FROM company_catalog ORDER BY slug').all()){
-      if(!/^company-[0-9a-f-]{36}\.sqlite$/.test(company.filename))throw Error('Invalid company catalogue filename');
-      const path=join(dirname(sourcePath),'.company-workspaces',company.filename);
-      if(!existsSync(path))throw Error('A company database is missing; restore it before upgrading');jobs.push(path);
-    }
-  }finally{source.close();}
-}
 const digest=rows=>createHash('sha256').update(JSON.stringify(rows)).digest('hex'),quote=name=>'"'+name.replaceAll('"','""')+'"',reports=[];
 for(const path of jobs){
   const stamp=new Date().toISOString().replace(/[:.]/g,'-')+'-'+randomUUID().slice(0,8),directory=join(dirname(path),'backups'),label=basename(path).replace(/[^\w.-]/g,'_');mkdirSync(directory,{recursive:true});
   const target=join(directory,`${label}-before-v04-${stamp}.sqlite`),copy=join(directory,`${label}-migration-validation-${stamp}.sqlite`);
   const source=new DatabaseSync(path,{readOnly:true});try{await backup(source,target);}finally{source.close();}
+  if(allCompanies&&path===sourcePath){const catalogue=new DatabaseSync(target,{readOnly:true});try{if(catalogue.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='company_catalog'").get())for(const company of catalogue.prepare('SELECT filename FROM company_catalog ORDER BY slug').all()){if(!/^company-[0-9a-f-]{36}\.sqlite$/.test(company.filename))throw Error('Invalid company catalogue filename');const child=join(dirname(sourcePath),'.company-workspaces',company.filename);if(!existsSync(child))throw Error('A company database is missing; restore it before upgrading');jobs.push(child);}}finally{catalogue.close();}}
   const before=new DatabaseSync(target,{readOnly:true});let snapshots;
   try{
     snapshots=before.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map(({name})=>{

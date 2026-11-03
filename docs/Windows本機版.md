@@ -42,3 +42,7 @@ node scripts/check-local-package.mjs
 輸出於 `artifacts/local/ERP-local`，不加入 Git。Windows CI 會使用 Windows Node 執行環境，驗證程式包中的實際執行檔、關閉重開、中文／空白程式路徑、新版備份、多公司保留及遺失資料庫拒絕後，再上傳可下載成品。
 
 從原始碼操作可執行 `npm run local`，使用者須先安裝 Node.js 24。`npm run dev:company` 與 `npm start` 保留原開發環境路徑與啟動方式，屬開發者入口；使用者日常操作以本機包的 `start.cmd` 為準。
+
+## 每日備份
+
+新版提供 `schedule-backup.cmd`，可設定每日時間及第二磁碟／網路位置，保留 30 組驗證成功的完整帳套備份。電腦須開機且使用者已登入，ERP 視窗關閉後仍可執行。換程式資料夾後請重跑排程設定。詳見 [v0.5 備份與升級](v0.5操作與權限.md)。

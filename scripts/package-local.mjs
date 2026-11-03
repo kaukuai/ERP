@@ -19,13 +19,14 @@ export function packageLocal(output=join(root,'artifacts/local/ERP-local')){
     }
   }
   for(const folder of ['src','public','vendor'])copyTree(folder);
-  for(const file of ['scripts/local.mjs','scripts/pre-upgrade.mjs','THIRD-PARTY-NOTICES.md']){const destination=join(output,'app',file);mkdirSync(dirname(destination),{recursive:true});copyFileSync(join(root,file),destination);}
+  for(const file of ['scripts/local.mjs','scripts/pre-upgrade.mjs','scripts/backup-service.mjs','THIRD-PARTY-NOTICES.md']){const destination=join(output,'app',file);mkdirSync(dirname(destination),{recursive:true});copyFileSync(join(root,file),destination);}
   const original=JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
   writeFileSync(join(output,'app/package.json'),JSON.stringify({name:'erp-local',version:original.version,private:true,type:'module',engines:{node:'24.x'},scripts:{start:'node scripts/local.mjs',backup:'node scripts/local.mjs --backup'}},null,2));
   mkdirSync(join(output,'runtime'));
   const executable=process.platform==='win32'?'node.exe':'node';copyFileSync(process.execPath,join(output,'runtime',executable));chmodSync(join(output,'runtime',executable),0o755);
   const license=[join(dirname(process.execPath),'LICENSE'),join(dirname(dirname(process.execPath)),'LICENSE')].find(existsSync);if(!license)throw Error('找不到 Node.js 授權檔，不能交付執行環境');copyFileSync(license,join(output,'runtime/LICENSE'));
-  for(const file of ['start.cmd','demo.cmd','backup.cmd'])copyFileSync(join(root,file),join(output,file));
+  mkdirSync(join(output,'scripts'),{recursive:true});copyFileSync(join(root,'scripts/install-backup-task.ps1'),join(output,'scripts/install-backup-task.ps1'));
+  for(const file of ['start.cmd','demo.cmd','backup.cmd','schedule-backup.cmd'])copyFileSync(join(root,file),join(output,file));
   for(const [file,args]of [['start-local.sh',''],['demo-local.sh','--demo'],['backup-local.sh','--backup']]){const text='#!/bin/sh\nset -eu\ncd "$(dirname "$0")"\nexec ./runtime/node ./app/scripts/local.mjs '+args+' "$@"\n';writeFileSync(join(output,file),text,{mode:0o755});}
   writeFileSync(join(output,'使用說明.txt'),'ERP 本機版\r\n\r\nWindows：解壓縮後雙擊 start.cmd，瀏覽器會自動開啟。\r\n不需要另外安裝 Node.js、Git 或資料庫。\r\n首次使用請自行建立管理員，沒有預設密碼。\r\n\r\n資料預設保存在 %LOCALAPPDATA%\\ERP-Local\\data，程式關閉後仍保留。\r\n新版解壓到另一個資料夾仍會沿用同一份本機設定；請先關閉舊版再啟動新版。\r\n若偵測到舊資料位置，會沿用原位置；實際位置以啟動畫面為準。\r\n更新前會備份全部帳套並驗證副本，失敗就不啟動新版。\r\n關閉服務後可雙擊 backup.cmd 手動備份，並將備份另存到其他磁碟。\r\n請保留完整資料資料夾、公司目錄及 backups，不要只保留單一 SQLite。\r\n\r\ndemo.cmd 使用另一份本機虛構示範資料，不會取代正式帳套。\r\n網頁展示與本機資料分開，不會自動同步正式資料到網站或 GitHub。\r\n');
   const metadata={format:1,version:original.version,platform:process.platform,arch:process.arch,node:process.version,created_at:new Date().toISOString(),contains_business_data:false};writeFileSync(join(output,'local-package.json'),JSON.stringify(metadata,null,2));

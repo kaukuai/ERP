@@ -1,3 +1,4 @@
+import { legacySales } from './access-control.mjs';
 import { permit,fail,integer,scaled,txt,dateValue,today,now } from './core.mjs';
 
 export function withInventorySelection(e,options,fn){
@@ -58,10 +59,10 @@ export class InventoryTracking {
     });
   }
   trace(u,id){
-    permit(u,'all');if(u.role==='sales')fail('無權存取批號完整流向',403);
+    permit(u,'all');if(legacySales(u))fail('無權存取批號完整流向',403);
     const lot=this.e.get('SELECT l.*,p.sku,p.name,w.name warehouse_name FROM inventory_lots l JOIN products p ON p.id=l.product_id JOIN warehouses w ON w.id=l.warehouse_id WHERE l.id=?',integer(id,1));if(!lot)fail('批號不存在',404);
     // Follow this lot/serial across warehouses, including original and return references.
     lot.moves=this.e.all('SELECT m.*,l.warehouse_id,w.name warehouse_name,s.kind FROM lot_moves m JOIN inventory_lots l ON l.id=m.lot_id JOIN warehouses w ON w.id=l.warehouse_id JOIN stock_moves s ON s.id=m.stock_move_id WHERE l.product_id=? AND l.code=? ORDER BY m.id',lot.product_id,lot.code);return lot;
   }
-  data(u){if(u.role==='sales')return {};return {inventory_lots:this.e.all('SELECT l.*,p.sku,p.name,p.tracking_mode,w.name warehouse_name FROM inventory_lots l JOIN products p ON p.id=l.product_id JOIN warehouses w ON w.id=l.warehouse_id ORDER BY p.sku,CASE WHEN l.expiry=\'\' THEN \'9999-12-31\' ELSE l.expiry END,l.id')};}
+  data(u){if(legacySales(u))return {};return {inventory_lots:this.e.all('SELECT l.*,p.sku,p.name,p.tracking_mode,w.name warehouse_name FROM inventory_lots l JOIN products p ON p.id=l.product_id JOIN warehouses w ON w.id=l.warehouse_id ORDER BY p.sku,CASE WHEN l.expiry=\'\' THEN \'9999-12-31\' ELSE l.expiry END,l.id')};}
 }

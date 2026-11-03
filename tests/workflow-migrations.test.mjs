@@ -28,7 +28,7 @@ test('v3 database copy migrates additively, preserves every old column and row, 
   await backup(db,copy);db.close();
   let migrated=new ERP(copy);
   for(const snapshot of snapshots)assert.equal(JSON.stringify(migrated.all(snapshot.sql)),snapshot.rows);
-  assert.equal(migrated.settings().schema_version,'12');assert.deepEqual(migrated.all('PRAGMA foreign_key_check'),[]);migrated.close();
+  assert.equal(migrated.settings().schema_version,'14');assert.deepEqual(migrated.all('PRAGMA foreign_key_check'),[]);migrated.close();
   migrated=new ERP(copy);assert.equal(migrated.get('SELECT no FROM documents WHERE id=1').no,'OLD-SO');migrated.close();
   const original=new DatabaseSync(path,{readOnly:true});assert.equal(original.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value,'3');original.close();
 });

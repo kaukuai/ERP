@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { createHash,randomBytes } from 'node:crypto';
 import { backup } from 'node:sqlite';
 import { ERP,DomainError,fail,verifyPassword,permit,has,now,integer,txt } from './core.mjs';
+import { accessContext } from './access-control.mjs';
+import { guardRequest } from './access-routes.mjs';
 import { printDocument } from './print.mjs';
 import { seedDemo } from './seed.mjs';
 import { Finance } from './finance.mjs';
@@ -16,6 +18,7 @@ import { rebuildPreview,rebuildCommit } from './rebuild.mjs';
 import { capabilityAudit } from './capabilities.mjs';
 import { FulfilmentBatches } from './fulfilment-batches.mjs';
 import { MonthlyBilling } from './billing.mjs';
+import { CompletionWorkflows } from './completion-workflows.mjs';
 import { WorkflowHub } from './workflow-hub.mjs';
 import { Companies,companyContext,companyProxy } from './companies.mjs';
 import { appVersion,allowedHostnames,requestSite,secretMatches,validateSecret } from './deployment.mjs';
@@ -26,7 +29,7 @@ const defaultErp=new ERP(dbPath),erp=companyProxy(defaultErp),demoUser=demo?seed
 const companies=new Companies(defaultErp,dbPath);
 const finance=new Finance(erp),trade=new Trade(erp),operations=new Operations(erp);
 const fulfilmentBatches=new FulfilmentBatches(erp),monthlyBilling=new MonthlyBilling(erp);
-const workflowHub=new WorkflowHub(erp);
+const workflowHub=new WorkflowHub(erp),completion=new CompletionWorkflows(erp);
 if(ephemeralDemo&&!defaultErp.get('SELECT id FROM pos_stores LIMIT 1')){
   const cash=finance.saveBank(demoUser,{code:'WEB-DEMO-CASH',name:'展示收銀現金',kind:'cash',opening_balance:'1000'}),bank=finance.saveBank(demoUser,{code:'WEB-DEMO-BANK',name:'展示收款帳戶',kind:'bank'});
   workflowHub.pos.saveStore(demoUser,{code:'DEMO-SHOP',name:'展示門市',warehouse_id:1,customer_id:1,cash_account_id:cash.id,bank_account_id:bank.id,scanner_mode:'keyboard',receipt_width:80,payment_provider:'manual',user_ids:[demoUser.id]});
@@ -41,8 +44,8 @@ const security={
   'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'same-origin','Cache-Control':'no-store','Permissions-Policy':'camera=(), microphone=(), geolocation=()'
 };
-function json(res,data,status=200,headers={}){res.writeHead(status,{...security,'Content-Type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(data));}
-function session(req){const prefix=cookieName()+'=',token=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(prefix))?.slice(prefix.length);if(!token)return null;const s=erp.get('SELECT s.*,u.username,u.name,u.role,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1',sha(token),Date.now());if(!s)return null;return {user:{id:s.user_id,username:s.username,name:s.name,role:s.role,active:s.active},csrf:s.csrf};}
+function json(res,data,status=200,headers={}){res.writeHead(status,{...security,'Content-Type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(erp.access.sanitize(accessContext.getStore()?.policy,data)));}
+function session(req){const prefix=cookieName()+'=',token=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(prefix))?.slice(prefix.length);if(!token)return null;const s=erp.get('SELECT s.*,u.username,u.name,u.role,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1',sha(token),Date.now());if(!s)return null;return {user:erp.user(s.user_id),csrf:s.csrf};}
 function createSession(res,user){const token=randomBytes(32).toString('hex'),csrf=randomBytes(24).toString('hex');erp.run('DELETE FROM sessions WHERE expires<=?',Date.now());erp.run('INSERT INTO sessions(token,user_id,csrf,expires) VALUES(?,?,?,?)',sha(token),user.id,csrf,Date.now()+8*3600000);json(res,{user,csrf},200, {'Set-Cookie':`${cookieName()}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secure?'; Secure':''}`});}
 async function body(req){let n=0;const chunks=[];for await(const chunk of req){n+=chunk.length;if(n>2*1024*1024)fail('請求內容不得超過 2MB',413);chunks.push(chunk);}let value;try{value=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');}catch{fail('JSON 格式錯誤');}if(value===null||typeof value!=='object'||Array.isArray(value))fail('JSON 請求需為物件');return value;}
 function csvCell(value){let s=String(value??'');if(/^[=+\-@\t\r\n]/.test(s)&&typeof value!=='number')s="'"+s;return '"'+s.replaceAll('"','""')+'"';}
@@ -77,18 +80,23 @@ async function handle(req,res){
     const u=erp.get('SELECT * FROM users WHERE username=? AND active=1',String(b.username||'').slice(0,50));
     const dummy='00000000000000000000000000000000:'+('00'.repeat(64));if(!verifyPassword(b.password,u?.password||dummy)||!u)fail('帳號或密碼不正確',401);attempts.delete(key);erp.log(u,'login','user',u.id);return createSession(res,erp.user(u.id));
   }
-  if(method==='GET'&&['/','/index.html','/app.js','/demo-client.js','/demo-print.js','/master-imports-ui.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
+  if(method==='GET'&&['/','/index.html','/app.js','/demo-client.js','/demo-print.js','/completion-ui.js','/access-ui.js','/master-imports-ui.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
     if(path==='/print.js'){res.writeHead(200,{...security,'Content-Type':'text/javascript; charset=utf-8'});return res.end("document.getElementById('print').addEventListener('click',()=>window.print());");}
     const name=path==='/'?'index.html':path.slice(1),type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.svg')?'image/svg+xml':'text/html';res.writeHead(200,{...security,'Content-Type':type+'; charset=utf-8'});return res.end(readFileSync(resolve(root,'public',name)));
   }
-  const auth=session(req);if(!auth)fail('請先登入',401);const u=auth.user;
+  const auth=session(req);if(!auth)fail('請先登入',401);const u=auth.user;return await accessContext.run({policy:erp.access.policy(u),reading:method==='GET'},async()=>{
   if(method==='POST'&&req.headers['x-csrf-token']!==auth.csrf)fail('驗證已失效，請重新登入',403);
   if(method==='GET'){
+    guardRequest(erp,u,path,method,{},Object.fromEntries(url.searchParams));
+    if(path.startsWith('/api/completion/')){const q=Object.fromEntries(url.searchParams);const methods={'stock-detail':()=>completion.stockDetail(u,q.id),'stock-print':()=>completion.stockPrint(u,q.id),history:()=>completion.history(u,q),'stock-history':()=>completion.stockHistory(u,q),matrix:()=>completion.matrix(u,q),aging:()=>completion.historicalAging(u,q)};const fn=methods[path.split('/')[3]];if(!fn)fail('入口不存在',404);const result=fn();if(path.endsWith('/stock-print')){res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(result);}if(q.format==='csv'){const sanitized=erp.access.sanitize(erp.access.policy(u),result),rows=sanitized.cells||sanitized.nodes||sanitized.rows||[],columns=[...new Set(rows.flatMap(r=>Object.keys(r).filter(k=>typeof r[k]!=='object')))],csv='\uFEFF'+[columns,...rows.map(r=>columns.map(k=>r[k]))].map(row=>row.map(csvCell).join(',')).join('\r\n');return json(res,{csv});}return json(res,result);}
+    if(path==='/api/access/admin')return json(res,erp.access.administration(u));
     const extra=workflowHub.get(u,path,Object.fromEntries(url.searchParams));if(extra!==undefined)return json(res,extra);
+    if(path==='/print/completion-statement'){const html=completion.statement(u,Object.fromEntries(url.searchParams));res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(html);}
+    if(/^\/print\/completion-stock\/\d+$/.test(path)){const html=completion.stockPrint(u,path.split('/')[3]);res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(html);}
     const printed=workflowHub.print(u,path,Object.fromEntries(url.searchParams));if(printed!==undefined){res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(printed);}
     if(path==='/api/company-summary')return json(res,companies.summary(currentCompany(),u));
     if(path==='/api/session')return json(res,auth);
-    if(path==='/api/bootstrap'){const d=erp.bootstrap(u);return json(res,{...d,...finance.data(u,d),...operations.data(u),...fulfilmentBatches.data(u),...monthlyBilling.data(u),...workflowHub.data(u),...companies.data(currentCompany(),u),capability_audit:capabilityAudit()});}
+    if(path==='/api/bootstrap'){const d=erp.bootstrap(u);return json(res,{...d,...finance.data(u,d),...operations.data(u),...fulfilmentBatches.data(u),...monthlyBilling.data(u),...workflowHub.data(u),...companies.data(currentCompany(),u),...erp.access.data(u),...completion.data(u),capability_audit:capabilityAudit()});}
     if(/^\/api\/fulfilment-batches\/\d+$/.test(path))return json(res,fulfilmentBatches.get(u,path.split('/').at(-1)));
     if(/^\/api\/monthly-bills\/\d+$/.test(path))return json(res,monthlyBilling.get(u,path.split('/').at(-1)));
     if(path==='/api/monthly-bills/preview')return json(res,monthlyBilling.pending(u,Object.fromEntries(url.searchParams)));
@@ -111,16 +119,22 @@ async function handle(req,res){
     fail('找不到此路徑',404);
   }
   const b=await body(req);
+  guardRequest(erp,u,path,method,b,Object.fromEntries(url.searchParams));
   if(path==='/api/logout'){erp.run('DELETE FROM sessions WHERE csrf=? AND user_id=?',auth.csrf,u.id);return json(res,{ok:true},200,{'Set-Cookie':`${cookieName()}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`});}
   if(path==='/api/label-preview'){operations.labels(u,b);return json(res,{valid:true});}
   if(path==='/api/document-preview'){permit(u,b.kind==='purchase'?'buy':'sell');const p=trade.preview(b);return json(res,{net:p.net,tax:p.tax,total:p.total,header_discount:p.header,lines:p.rows.map(l=>({amount:l.amount,net:l.net,tax:l.tax,total:l.total,base_qty:l.base_qty,header_discount_amount:l.header_discount_amount}))});}
-  const key=String(req.headers['idempotency-key']||'');if(!/^[\w-]{16,100}$/.test(key))fail('缺少有效的冪等請求識別碼');const fingerprint=sha(u.role+'\n'+path+'\n'+JSON.stringify(b));
+  const key=String(req.headers['idempotency-key']||'');if(!/^[\w-]{16,100}$/.test(key))fail('缺少有效的冪等請求識別碼');const fingerprint=sha(u.role+'\n'+erp.access.policy(u).revision+'\n'+path+'\n'+JSON.stringify(b));
   let rebuildBackup=null;
   if(path==='/api/rebuilds/commit'){permit(u,'admin');txt(b.reason,1000,true);const prior=erp.get('SELECT * FROM requests WHERE key=? AND user_id=?',key,u.id);if(prior){if(prior.fingerprint!==fingerprint)fail('請求識別碼已用於不同內容',409);return json(res,JSON.parse(prior.response));}const plan=rebuildPreview(erp,u,b.kind);if(!plan.valid||plan.token!==b.token||!plan.changes.length)fail('請先重新預覽有效的重建差異',409);const dir=dbPath===':memory:'?mkdtempSync(join(tmpdir(),'cheng-rebuild-')):resolve(dirname(dbPath),'backups');mkdirSync(dir,{recursive:true});rebuildBackup='before-rebuild-'+Date.now()+'-'+randomBytes(6).toString('hex')+'.sqlite';await backup(erp.db,join(dir,rebuildBackup));erp.log(u,'backup_for_rebuild','database',1,{file:rebuildBackup});}
   const result=erp.tx(()=>{
+    erp.access.revision(erp.access.policy(u));
+    erp.access.hydrate(u);
+    accessContext.getStore().policy=erp.access.policy(u);
+    guardRequest(erp,u,path,method,b,Object.fromEntries(url.searchParams));
     const previous=erp.get('SELECT * FROM requests WHERE key=? AND user_id=?',key,u.id);if(previous){if(previous.fingerprint!==fingerprint)fail('請求識別碼已用於不同內容',409);return JSON.parse(previous.response);}
     let r;
-    const extra=path==='/api/companies'?companies.create(currentCompany(),u,b):path==='/api/company-summary-grants'?companies.grant(currentCompany(),u,b):workflowHub.post(u,path,b);
+    const completionMethods={'invoice-link':'invoiceLink',assign:'assign',standards:'standards','cost-policy':'costPolicy','monthly-cost-preview':'monthlyCostPreview','monthly-cost':'monthlyCost',preferences:'preferences',category:'category','custom-field':'customDefinition','product-attributes':'productAttributes','opening-fund':'openingFund',closing:'closing','closing-preview':'closingPreview','stock-document':'stockDocument','stock-action':'stockAction','replenishment-policy':'policy',replenish:'replenish','count-rebase':'countRebase','count-preview':'countPreview','count-file':'countFile',disassemble:'disassemble','kit-sale':'kitSale','partial-release':'partialRelease',settlement:'settlement','cost-batch':'costBatch'};
+    const extra=path.startsWith('/api/completion/')?(completionMethods[path.split('/')[3]]?completion[completionMethods[path.split('/')[3]]](u,b):fail('入口不存在',404)):path==='/api/access/profiles'?erp.access.saveProfile(u,b):path==='/api/access/roles'?erp.access.saveRole(u,b):path==='/api/access/simulate'?erp.access.simulate(u,b):path==='/api/companies'?companies.create(currentCompany(),u,b):path==='/api/company-summary-grants'?companies.grant(currentCompany(),u,b):workflowHub.post(u,path,b);
     if(extra!==undefined)r=extra;
     else if(path==='/api/fulfilment-batches')r=fulfilmentBatches.create(u,b);
     else if(path==='/api/monthly-bills')r=monthlyBilling.close(u,b);
@@ -188,6 +202,7 @@ async function handle(req,res){
     if(r?.id&&['quote','order','purchase'].includes(r.kind))r=erp.publicDoc(u,r.id);
     erp.run('INSERT INTO requests(key,user_id,fingerprint,response,created_at) VALUES(?,?,?,?,?)',key,u.id,fingerprint,JSON.stringify(r),now());return r;
   });json(res,result);
+ });
  }catch(e){
   if(res.headersSent){res.destroy();return;}
   const constraint=String(e.message).includes('UNIQUE constraint failed'),foreign=String(e.message).includes('FOREIGN KEY constraint');

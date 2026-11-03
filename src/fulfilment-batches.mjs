@@ -1,3 +1,4 @@
+import { legacySales } from './access-control.mjs';
 import { permit,has,fail,integer,scaled,ratio,txt,now } from './core.mjs';
 import { printPage } from './operations.mjs';
 import { escapeHTML as E } from './print.mjs';
@@ -42,7 +43,7 @@ export class FulfilmentBatches {
   }
   get(u, id) {
     permit(u, 'all');
-    if (u.role === 'sales') fail('無權存取合併出入庫資料', 403);
+    if (legacySales(u)) fail('無權存取合併出入庫資料', 403);
     const e = this.e, batch = e.get('SELECT b.*,w.name warehouse_name FROM fulfilment_batches b JOIN warehouses w ON w.id=b.warehouse_id WHERE b.id=?', integer(id, 1));
     if (!batch) fail('合併出入庫單不存在', 404);
     batch.partner = JSON.parse(batch.partner_snapshot);
@@ -64,7 +65,7 @@ export class FulfilmentBatches {
     return batch;
   }
   data(u) {
-    if (u.role === 'sales') return {};
+    if (legacySales(u)) return {};
     return { fulfilment_batches: this.e.all('SELECT id FROM fulfilment_batches ORDER BY id DESC LIMIT 500').map(row => {
       const b = this.get(u, row.id);
       delete b.lines; delete b.partner_snapshot;
