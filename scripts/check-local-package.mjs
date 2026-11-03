@@ -13,7 +13,8 @@ const home=join(scratch,'user-data'),nodeName=process.platform==='win32'?'node.e
 const env={...process.env,ERP_LOCAL_HOME:home,ERP_MODE:'demo',ERP_PROXY_SECRET:'ignored-cloud-setting',VERCEL:'1'};delete env.NODE_TEST_CONTEXT;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function stop(){
-  if(active&&active.exitCode===null){active.kill();await once(active,'exit');}
+  const current=active;active=null;if(!current)return;
+  if(current.exitCode===null&&current.signalCode===null){current.kill();await once(current,'exit');}
   for(let i=0;i<100;i++){try{await fetch(base+'/healthz',{signal:AbortSignal.timeout(300)});}catch{return;}await pause(50);}throw Error('停止啟動器後服務仍在執行');
 }
 async function launch(directory){
