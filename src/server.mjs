@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { integer } from './core.mjs';
 import { validateSecret } from './deployment.mjs';
 import { createApplication } from './application.mjs';
+import { acquireLocalLock } from './local-lock.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),demo=process.argv.includes('--demo');
 if(process.env.VERCEL==='1')throw new Error('請使用 vercel.json 指定的 api/index.mjs 網站入口；正式 SQLite 後端需要持久磁碟。');
@@ -14,8 +15,11 @@ if(proxySecret&&setupKey&&proxySecret===setupKey)throw new Error('ERP_SETUP_KEY 
 const host=process.env.ERP_HOST||'127.0.0.1',port=integer(process.env.PORT||(demo?4321:4320),1024,65535);
 if(demo&&!['127.0.0.1','localhost','::1'].includes(host))throw new Error('示範模式只能綁定本機');
 const dbPath=process.env.ERP_DB===':memory:'?':memory:':resolve(process.env.ERP_DB||resolve(root,'data',demo?'demo.sqlite':'company.sqlite'));
-const app=createApplication({dbPath,demo,port,secureCookie:process.env.ERP_SECURE_COOKIE==='1'});
+const release=process.env.ERP_LOCAL_INSTANCE?acquireLocalLock(dbPath):()=>{};process.on('exit',release);
+const app=createApplication({dbPath,demo,port,secureCookie:process.env.ERP_SECURE_COOKIE==='1',localInstance:process.env.ERP_LOCAL_INSTANCE});
 const server=http.createServer(app.handler);
 server.requestTimeout=30000;server.headersTimeout=15000;
-server.listen(port,host,()=>console.log(`ERP ${demo?'（獨立示範資料庫）':''}\nLocal: http://${host==='::1'?'[::1]':host}:${port}\nDatabase: ${dbPath}\n以 Ctrl+C 停止服務。`));
-for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>{app.close();process.exit(0);}));
+server.listen(port,host,()=>{console.log(`ERP ${demo?'（獨立示範資料庫）':''}\nLocal: http://${host==='::1'?'[::1]':host}:${port}\nDatabase: ${dbPath}\n以 Ctrl+C 停止服務。`);if(process.send)process.send({type:'ready',port});});
+let stopping=false;const stop=()=>{if(stopping)return;stopping=true;server.close(()=>{app.close();release();process.exit(0);});};
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,stop);
+if(process.send)process.on('disconnect',stop);

@@ -1,6 +1,6 @@
 import { createHash,timingSafeEqual } from 'node:crypto';
 
-export const appVersion='0.4.2';
+export const appVersion='0.4.3';
 export const proxyHeaders=['x-erp-proxy-token','x-erp-public-host','x-erp-public-proto'];
 export function secretMatches(actual,expected){
   if(typeof actual!=='string'||typeof expected!=='string'||!expected)return false;

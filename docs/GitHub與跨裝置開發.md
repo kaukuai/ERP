@@ -1,6 +1,10 @@
 # GitHub 與跨裝置開發
 
-原始碼儲存庫：[kaukuai/ERP](https://github.com/kaukuai/ERP)。目前版本為 v0.3 核心試行版，功能驗收清單仍記錄未完成部分。
+原始碼儲存庫：[kaukuai/ERP](https://github.com/kaukuai/ERP)。目前版本為 v0.4.3 互動展示與 Windows 本機版，功能驗收清單仍記錄未完成部分。
+
+## Windows 使用者下載本機版
+
+Actions 的 Verify ERP 檢查通過後會建立 ERP-Windows 成品，附 Node 執行環境與啟動檔。日常使用不需安裝 Git 或複製開發環境；詳細步驟見 [Windows 本機版](Windows本機版.md)。資料保存在 Windows 使用者資料夾或既有記錄位置，不隨程式碼上傳。
 
 ## 在另一台電腦開發
 
@@ -69,4 +73,4 @@ GitHub 同步原始碼、測試、操作文件、虛構示範截圖與元件授�
 
 停止 Codespace 通常只是停止運算；刪除 Codespace 會移除其工作檔，未提交的程式和被 Git 忽略的資料不會因 push 自動保留。程式請 commit／push；有保留需求的測試資料應使用受控備份，不要把資料庫改成可追蹤檔案。
 
-本次 GitHub 移轉是開發環境的搬移。公司正式 ERP 的共用網址、HTTPS 伺服器、正式資料移轉、備份與維運部署仍是另一項工作；GitHub Pages 無法直接執行此 Node.js／SQLite 伺服器。公司正式資料持續保留於原工作環境。
+本次 GitHub 移轉是開發環境的搬移。公司正式 ERP 的共用網址、HTTPS 伺服器、正式資料移轉、備份與維運部署仍是另一項工作；GitHub Pages 無法直接執行此 Node.js／SQLite 伺服器。既有正式資料保留原位置；新增 Windows 本機版依其本機設定保存。不得將雲端建置成功當作已在使用者電腦安裝。

@@ -21,7 +21,7 @@ import { Companies,companyContext,companyProxy } from './companies.mjs';
 import { appVersion,allowedHostnames,requestSite,secretMatches,validateSecret } from './deployment.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-export function createApplication({dbPath=':memory:',demo=false,port=4320,allowed=allowedHostnames(),secureCookie=false,ephemeralDemo=false,proxySecret=process.env.ERP_PROXY_SECRET,setupKey=process.env.ERP_SETUP_KEY}={}){
+export function createApplication({dbPath=':memory:',demo=false,port=4320,allowed=allowedHostnames(),secureCookie=false,ephemeralDemo=false,proxySecret=process.env.ERP_PROXY_SECRET,setupKey=process.env.ERP_SETUP_KEY,localInstance}={}){
 const defaultErp=new ERP(dbPath),erp=companyProxy(defaultErp),demoUser=demo?seedDemo(defaultErp):null;
 const companies=new Companies(defaultErp,dbPath);
 const finance=new Finance(erp),trade=new Trade(erp),operations=new Operations(erp);
@@ -67,7 +67,7 @@ async function handle(req,res){
   }
   if(method==='GET'&&path==='/runtime.js'){res.writeHead(200,{...security,'Content-Type':'text/javascript; charset=utf-8'});return res.end('window.ERP_DEMO_MODE=false;');}
   if(method==='GET'&&path==='/api/companies')return json(res,companies.list());
-  if(method==='GET'&&path==='/healthz')return json(res,{ok:true,version:appVersion,ephemeral_demo:ephemeralDemo});
+  if(method==='GET'&&path==='/healthz')return json(res,{ok:true,version:appVersion,ephemeral_demo:ephemeralDemo,...(localInstance?{local_instance:localInstance}:{})});
   if(method==='GET'&&path==='/api/status')return json(res,{initialized:!!erp.get('SELECT id FROM users LIMIT 1'),setup_key_required:!!setupKey,demo:demo&&currentCompany().slug==='default',company:currentCompany().slug,today:new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date()).slice(0,10),version:appVersion,ephemeral_demo:ephemeralDemo});
   if(method==='POST'&&path==='/api/setup'){if(demo&&currentCompany().slug==='default')fail('示範模式不允許初始化');const b=await body(req);if(setupKey&&!secretMatches(b.setup_key,setupKey))fail('初始化密鑰不正確',403);const u=erp.setup(b);return createSession(res,u);}
   if(method==='POST'&&(path==='/api/login'||path==='/api/demo')){

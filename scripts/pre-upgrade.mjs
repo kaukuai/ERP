@@ -41,7 +41,7 @@ for(const path of jobs){
     e=new ERP(copy);
     for(const table of snapshots)if(digest(e.all(table.sql))!==table.hash)throw Error('Migration changed existing rows: '+table.name);
     const integrity=e.integrity({role:'admin'});if(!integrity.ok)throw Error('Migration copy failed integrity: '+JSON.stringify(integrity.problems));
-    const report={backup:target,schema:e.settings().schema_version,preserved_tables:snapshots.map(({name,count})=>({name,count})),existing_rows_preserved:true,integrity:true};
+    const report={source:path,backup:target,schema:e.settings().schema_version,preserved_tables:snapshots.map(({name,count})=>({name,count})),existing_rows_preserved:true,integrity:true};
     writeFileSync(target+'.json',JSON.stringify(report,null,2));reports.push(report);
   }finally{e?.close();for(const suffix of ['','-wal','-shm'])if(existsSync(copy+suffix))unlinkSync(copy+suffix);}
 }
