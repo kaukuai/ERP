@@ -54,7 +54,10 @@ test("all neutral presets validate; typed fields reject HTML execution, invalid 
       date: "2026-11-03",
       name: "<script>alert(1)</script>",
       items: [
-        { item: "<img onerror=alert(1)>", description: "長說明\n第二行" },
+        {
+          item: "<img onerror=alert(1)>",
+          description: "長說明\n第二行\n+保留正號",
+        },
       ],
     },
     true,
@@ -63,6 +66,7 @@ test("all neutral presets validate; typed fields reject HTML execution, invalid 
   assert.doesNotMatch(html, /<script>alert|<img onerror/);
   assert.match(html, /&lt;script&gt;/);
   assert.match(html, /第二行/);
+  assert.match(html, /\n\+保留正號/);
 });
 test("form entries preserve layout and company snapshots, immutable history, submission locks, cancellation reasons and version conflicts", (t) => {
   const { e, a, f } = fixture(t),
