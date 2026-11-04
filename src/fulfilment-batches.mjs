@@ -24,7 +24,7 @@ export class FulfilmentBatches {
           for (const line of source.lines) scaled(line.qty, 3);
         }
         if (e.get("SELECT pl.id FROM pick_lines pl JOIN pick_lists p ON p.id=pl.pick_id JOIN document_lines dl ON dl.id=pl.document_line_id WHERE dl.document_id=? AND p.status='draft' LIMIT 1", d.id)) fail('來源訂單已有作業中的揀貨單，請先完成或取消揀貨', 409);
-        return { d, lines: source.lines, lots: source.lots };
+        return { d, lines: source.lines, lots: source.lots,quality_inspection_id:source.quality_inspection_id };
       });
       const first = sources[0].d;
       if (sources.some(({ d }) => d.kind !== first.kind || d.partner_id !== first.partner_id || d.warehouse_id !== first.warehouse_id)) fail('合併單必須同一往來對象、倉庫及單據類型');
@@ -33,8 +33,8 @@ export class FulfilmentBatches {
       const id = Number(e.run('INSERT INTO fulfilment_batches(no,kind,partner_id,warehouse_id,partner_snapshot,shipping_address,notes,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?)', no, first.kind === 'order' ? 'shipment' : 'receipt', first.partner_id, first.warehouse_id, first.partner_snapshot, txt(b.shipping_address ?? first.shipping_address, 300), txt(b.notes, 2000), u.id, now()).lastInsertRowid);
       // Keep each source's frozen units, tax allocation, cost and return linkage.
       // The outer transaction makes the combined document and all postings atomic.
-      for (const { d, lines, lots } of sources) {
-        const f = e.fulfil(u, d.id, lines === undefined ? {lots} : { lines,lots });
+      for (const { d, lines, lots,quality_inspection_id } of sources) {
+        const f = e.fulfil(u, d.id, {lines,lots,quality_inspection_id});
         e.run('INSERT INTO fulfilment_batch_sources VALUES(?,?)', id, f.id);
       }
       e.log(u, 'combine_fulfilments', 'fulfilment_batch', id, { no, documents: [...seen] });

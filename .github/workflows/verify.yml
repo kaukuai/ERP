@@ -45,7 +45,7 @@ jobs:
           ERP_BROWSER_OUTPUT: ${{ runner.temp }}/erp-browser-results
         run: |
           node scripts/build-vercel.mjs
-          node scripts/check-browser-demo.cjs tests/browser-document-layout.cjs tests/browser-regression.cjs tests/browser-governance.cjs tests/browser-forms.cjs
+          node scripts/check-browser-demo.cjs tests/browser-document-layout.cjs tests/browser-regression.cjs tests/browser-governance.cjs tests/browser-forms.cjs tests/browser-controls.cjs
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

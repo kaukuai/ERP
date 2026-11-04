@@ -1,3 +1,4 @@
+import { guardControls } from "./controls.mjs";
 import { accessPolicy, accessContext } from "./access-control.mjs";
 import { fail, integer } from "./core.mjs";
 const routes = {
@@ -297,6 +298,7 @@ export function routeDescriptor(e, path, method, b = {}, query = {}) {
   return { resource: pair[0], table: pair[1], id: id || null, action };
 }
 export function guardRequest(e, u, path, method, b = {}, query = {}) {
+  if(guardControls(e,u,path,method,b))return;
   const p = e.access.policy(u);
   if (!p.configured || p.superuser) return;
   if (

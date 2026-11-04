@@ -16,6 +16,8 @@ import { migrateV12 } from './migrate-v12.mjs';
 import { migrateV14 } from './migrate-v14.mjs';
 import { migrateV15 } from './migrate-v15.mjs';
 import { migrateV16 } from './migrate-v16.mjs';
+import { migrateV17 } from './migrate-v17.mjs';
+import { qualityGate,consumeInspection } from './quality.mjs';
 import { startApproval,advanceApproval,cancelApproval,checkEntryWindow } from './governance.mjs';
 import { migrateV13 } from './migrate-v13.mjs';
 import { AccessControl,accessContext,detailedHas,legacySales } from './access-control.mjs';
@@ -70,13 +72,13 @@ export class ERP {
     this.db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').run('schema_version','1');
     const accounts=[['1000','銀行及現金','asset'],['1100','應收帳款','asset'],['1200','存貨','asset'],['1250','借出存貨','asset'],['1300','進項稅額','asset'],['2000','應付帳款','liability'],['2100','銷項稅額','liability'],['2200','借入存貨義務','liability'],['3000','期初權益','equity'],['4000','銷貨收入','revenue'],['5000','銷貨成本','expense'],['5100','存貨調整損益','expense']];
     for(const a of accounts) this.db.prepare('INSERT OR IGNORE INTO accounts VALUES(?,?,?)').run(...a);
-    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);migrateV13(this.db);migrateV14(this.db);migrateV15(this.db);migrateV16(this.db);this.access=new AccessControl(this);
+    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);migrateV13(this.db);migrateV14(this.db);migrateV15(this.db);migrateV16(this.db);migrateV17(this.db);this.access=new AccessControl(this);
     }catch(error){this.db.close();throw error;}
   }
   close(){this.db.close();}
   get(sql,...args){const context=accessContext.getStore(),row=this.db.prepare(this.access?.rewrite(sql,context?.reading?context.policy:null)||sql).get(...args);return this.access?.sourceRows(sql,row,context)??row;}
   all(sql,...args){const context=accessContext.getStore(),rows=this.db.prepare(this.access?.rewrite(sql,context?.reading?context.policy:null)||sql).all(...args);return this.access?.sourceRows(sql,rows,context)??rows;}
-  run(sql,...args){return this.db.prepare(sql).run(...args);}
+  run(sql,...args){try{return this.db.prepare(sql).run(...args);}catch(error){if(String(error.message).includes('ERP_VENDOR_MATCH_REQUIRED'))fail('此應付帳款尚未完成有效的三方核對，或來源退貨／折讓後須重新核對；不能付款或沖抵',409);throw error;}}
   tx(fn){if(this.inTx)return fn();this.db.exec('BEGIN IMMEDIATE');this.inTx=true;try{const result=fn();this.db.exec('COMMIT');return result;}catch(e){this.db.exec('ROLLBACK');throw e;}finally{this.inTx=false;}}
   log(user,action,entity,id,detail={}){this.run('INSERT INTO audit(actor_id,action,entity,entity_id,detail,created_at) VALUES(?,?,?,?,?,?)',user?.id??null,action,entity,String(id),JSON.stringify(detail),now());}
   settings(){return Object.fromEntries(this.all('SELECT key,value FROM settings').map(x=>[x.key,x.value]));}
@@ -214,7 +216,7 @@ export class ERP {
   replenishment(u){if(legacySales(u))fail('無權存取採購建議',403);return this.all("SELECT p.id product_id,p.sku,p.name,p.unit,p.safety_qty,p.supplier_id,pa.name supplier_name,COALESCE((SELECT sum(s.qty-s.reserved) FROM stocks s WHERE s.product_id=p.id),0) available_qty,COALESCE((SELECT sum((l.qty-l.done_qty-l.closed_qty)*l.unit_ratio/1000) FROM document_lines l JOIN documents d ON d.id=l.document_id WHERE l.product_id=p.id AND d.kind='purchase' AND d.status IN ('approved','partial')),0) incoming_qty FROM products p LEFT JOIN partners pa ON pa.id=p.supplier_id WHERE p.active=1 AND p.track_stock=1 ORDER BY p.sku").map(r=>({...r,suggested_qty:(()=>{const policy=this.get('SELECT * FROM replenishment_policies WHERE product_id=?',r.product_id);const raw=Math.max(0,(policy?.target_qty??r.safety_qty)-r.available_qty-r.incoming_qty);return raw?policy?Math.ceil(Math.max(raw,policy.min_order_qty)/policy.multiple_qty)*policy.multiple_qty:raw:0;})()})).filter(r=>r.available_qty<r.safety_qty);}
   fulfil(u,id,b){return withInventorySelection(this,{lots:b.lots},()=>new Trade(this).fulfil(u,id,b));}
   fulfilLegacy(u,id,b){permit(u,'stock');return this.tx(()=>{
-    this.checkPeriod();const d=this.doc(u,id);if(!['order','purchase'].includes(d.kind)||!['approved','partial'].includes(d.status))fail('請先核准訂單或採購單',409);
+    this.checkPeriod();const d=this.doc(u,id);if(d.kind==='purchase'&&JSON.parse(this.settings().procurement_control_policy||'{}').require_matching)fail('已啟用三方核對，舊計價採購請先核對並結束未交量，再以新版採購建立可逐列核對的進貨',409);const qualityId=qualityGate(this,u,id,b);if(!['order','purchase'].includes(d.kind)||!['approved','partial'].includes(d.status))fail('請先核准訂單或採購單',409);
     const kind=d.kind==='order'?'shipment':'receipt';const requested=new Map();if(b.lines!==undefined){if(!Array.isArray(b.lines))fail('明細格式錯誤');for(const l of b.lines){const lid=integer(l.line_id,1);if(requested.has(lid))fail('明細重複');requested.set(lid,scaled(l.qty,3));}for(const lid of requested.keys())if(!d.lines.some(l=>l.id===lid))fail('明細不屬於此單據');}
     const rows=[];for(const l of d.lines){const q=b.lines===undefined?l.qty-l.done_qty:(requested.get(l.id)||0);if(q>l.qty-l.done_qty)fail('出入庫數量超過未交量');if(q===0)continue;const amount=ratio(l.amount,l.done_qty+q,l.qty)-ratio(l.amount,l.done_qty,l.qty);rows.push({...l,q,alloc:amount});}if(!rows.length)fail('請輸入本次出入庫數量');
     const prior=this.get('SELECT COALESCE(sum(total),0) total,COALESCE(sum(net),0) net,COALESCE(sum(tax),0) tax FROM fulfilments WHERE document_id=?',d.id);
@@ -232,7 +234,7 @@ export class ERP {
     const p=this.partner(u,d.partner_id),controlAccount=recordOpenItem(this,fid,kind==='shipment'?'receivable':'payable',p,total);
     const entries=kind==='shipment'?[[controlAccount,total,0],['4000',0,net],['2100',0,tax],['5000',cost,0],['1200',0,cost]]:[['1200',net,0],['1300',tax,0],[controlAccount,0,total]];
     this.journal(u,kind==='shipment'?'銷貨出庫與應收':'採購入庫與應付',no,entries);
-    const remaining=this.get('SELECT sum(qty-done_qty-closed_qty) n FROM document_lines WHERE document_id=?',d.id).n;this.run('UPDATE documents SET status=?,version=version+1,updated_at=? WHERE id=?',remaining?'partial':'completed',now(),d.id);this.log(u,kind,'document',d.id,{no,total,cost});return {id:fid,no,document:this.doc(u,d.id)};
+    const remaining=this.get('SELECT sum(qty-done_qty-closed_qty) n FROM document_lines WHERE document_id=?',d.id).n;this.run('UPDATE documents SET status=?,version=version+1,updated_at=? WHERE id=?',remaining?'partial':'completed',now(),d.id);consumeInspection(this,u,qualityId,fid);this.log(u,kind,'document',d.id,{no,total,cost});return {id:fid,no,document:this.doc(u,d.id)};
   });}
   pay(u,b){permit(u,'finance');return this.tx(()=>{
     const item=this.get('SELECT * FROM open_items WHERE id=?',integer(b.open_item_id,1));if(!item)fail('帳款不存在',404);if(item.billing_state==='pending')fail('此交易尚未月結立帳，不能收付款',409);const amount=scaled(b.amount,2,1);if(amount>item.amount-item.paid)fail('沖帳金額超過未結餘額',409);const d=dateValue(b.date);this.checkPeriod(d);const method=txt(b.method||'bank',30,true);if(!['bank','cash','cheque'].includes(method))fail('付款方式錯誤');const no=this.number(item.kind==='receivable'?'AR':'AP');

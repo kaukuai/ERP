@@ -18,6 +18,9 @@ const actions = {
   print: "列印",
 };
 const defs = [
+  ["vendor_bills","供應商請款與三方核對","finance","vendor_bills vendor_bill_lines vendor_bill_links vendor_bill_events"],
+  ["quality_specs","品質檢驗規格","admin","quality_specs"],
+  ["quality_inspections","品質檢驗與放行","stock","quality_inspections quality_inspection_lines quality_events quality_releases"],
   ["form_templates", "表單版型設計", "admin", "form_templates form_template_versions"],
   ["form_entries", "表單填寫紀錄", "forms", "form_entries form_entry_events"],
   [
@@ -453,6 +456,11 @@ export class AccessControl {
               : "'" + x.replaceAll("'", "''") + "'",
           )
           .join(",") || "NULL";
+    if(table==='vendor_bills'&&['warehouse','category'].includes(kind)) {
+      const field=kind==='warehouse'?'d.warehouse_id':"COALESCE(dl.category,'')";
+      const source=`FROM main.vendor_bill_lines vb JOIN main.fulfilment_lines fl ON fl.id=vb.receipt_line_id JOIN main.fulfilments f ON f.id=fl.fulfilment_id JOIN main.documents d ON d.id=f.document_id JOIN main.document_lines dl ON dl.id=fl.document_line_id WHERE vb.bill_id=${col('id')}`;
+      return `EXISTS(SELECT 1 ${source}) AND NOT EXISTS(SELECT 1 ${source} AND ${field} NOT IN (${quoted}))`;
+    }
     if (kind === "owner") {
       if (
         [

@@ -46,7 +46,7 @@ const security={
 };
 // These endpoints return validated form definitions or authorized standalone records.
 // Their custom keys (e.g. page.margin) are not transaction cost/privacy fields.
-const isFormPayload=path=>/^\/api\/(form-templates|form-entries)(?:\/|$)/.test(path);
+const isFormPayload=path=>/^\/api\/(form-templates|form-entries)(?:\/|$)/.test(path)||/^\/api\/controls\/quality-inspections(?:\/|$)/.test(path);
 function json(res,data,status=200,headers={},formPayload=false){res.writeHead(status,{...security,'Content-Type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(formPayload?data:erp.access.sanitize(accessContext.getStore()?.policy,data)));}
 function session(req){const prefix=cookieName()+'=',token=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(prefix))?.slice(prefix.length);if(!token)return null;const s=erp.get('SELECT s.*,u.username,u.name,u.role,u.active FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>? AND u.active=1',sha(token),Date.now());if(!s)return null;return {user:erp.user(s.user_id),csrf:s.csrf};}
 function createSession(res,user){const token=randomBytes(32).toString('hex'),csrf=randomBytes(24).toString('hex');erp.run('DELETE FROM sessions WHERE expires<=?',Date.now());erp.run('INSERT INTO sessions(token,user_id,csrf,expires) VALUES(?,?,?,?)',sha(token),user.id,csrf,Date.now()+8*3600000);json(res,{user,csrf},200, {'Set-Cookie':`${cookieName()}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secure?'; Secure':''}`});}
@@ -83,7 +83,7 @@ async function handle(req,res){
     const u=erp.get('SELECT * FROM users WHERE username=? AND active=1',String(b.username||'').slice(0,50));
     const dummy='00000000000000000000000000000000:'+('00'.repeat(64));if(!verifyPassword(b.password,u?.password||dummy)||!u)fail('帳號或密碼不正確',401);attempts.delete(key);erp.log(u,'login','user',u.id);return createSession(res,erp.user(u.id));
   }
-  if(method==='GET'&&['/','/index.html','/app.js','/governance-ui.js','/form-model.js','/forms-ui.js','/forms.css','/demo-client.js','/demo-print.js','/completion-ui.js','/access-ui.js','/master-imports-ui.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
+  if(method==='GET'&&['/','/index.html','/app.js','/controls-ui.js','/governance-ui.js','/form-model.js','/forms-ui.js','/forms.css','/demo-client.js','/demo-print.js','/completion-ui.js','/access-ui.js','/master-imports-ui.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
     if(path==='/print.js'){res.writeHead(200,{...security,'Content-Type':'text/javascript; charset=utf-8'});return res.end("document.getElementById('print').addEventListener('click',()=>window.print());");}
     const name=path==='/'?'index.html':path.slice(1),type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.svg')?'image/svg+xml':'text/html';res.writeHead(200,{...security,'Content-Type':type+'; charset=utf-8'});return res.end(readFileSync(resolve(root,'public',name)));
   }

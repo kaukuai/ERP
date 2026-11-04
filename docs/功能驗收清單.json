@@ -6,7 +6,7 @@
     "reference": "https://www.scribd.com/document/982017657/數碼一號-進銷存系統操作手冊",
     "note": "頁碼以原廠公開 PDF 為準。比對功能行為；不複製廠商程式、版面或操作文字。"
   },
-  "version": "0.7.0",
+  "version": "0.8.0",
   "expanded": {
     "checked_at": "2026-11-04",
     "note": "原 115 項只涵蓋既定驗收；下列為附件需求及重新拆細的手冊／其他產品差距，不可用原清單待建置為零宣稱全功能對等。",
@@ -86,18 +86,18 @@
       {
         "id": "V02",
         "name": "獨立供應商請款與三方核對",
-        "status": "missing",
+        "status": "usable",
         "source": "Odoo Purchase：Control and know when vendor bills should be paid",
-        "acceptance": "有採購、收貨及應付來源連動；尚無獨立廠商發票對採購／驗收的差異容忍與付款管制工作流。",
-        "evidence": "trade.mjs、billing.mjs"
+        "acceptance": "獨立供應商憑證、完整進貨單未退明細與採購來源核對，數量／單價／未稅／稅額容忍、異人核准、不可覆寫快照及付款管制；涵蓋單筆、月結、預付沖抵與票據，退貨／折讓後須重新核對。不自動改帳，不支援同一進貨單拆多張部分請款。",
+        "evidence": "controls.test.mjs、controls-http.test.mjs、browser-controls.cjs"
       },
       {
         "id": "V03",
         "name": "品質檢驗與放行",
-        "status": "missing",
+        "status": "usable",
         "source": "ERPNext Quality Inspection",
-        "acceptance": "尚無抽樣量、數值／非數值檢驗規格、檢驗判定、待驗隔離及檢驗完成才准收出貨的流程。通用表單不能代替它。",
-        "evidence": "inventory-tracking.mjs、forms.mjs"
+        "acceptance": "採購入庫／訂單出貨的抽樣量、數值與文字規格、合格判定、異人放行及待驗不入可用庫存；本批數量／來源修訂綁定、較新不合格不能退回舊放行、失敗與合併交易回滾、事件與規格快照。範圍不含非交易調整或實機品檢設備。",
+        "evidence": "controls.test.mjs、controls-http.test.mjs、browser-controls.cjs"
       },
       {
         "id": "V04",
@@ -141,9 +141,9 @@
       }
     ],
     "summary": {
-      "usable": 5,
+      "usable": 7,
       "partial": 5,
-      "missing": 6,
+      "missing": 4,
       "external": 0
     }
   },
@@ -1311,5 +1311,5 @@
       "priority": "P1 核心補齊"
     }
   ],
-  "warning": "本次另有 16 項加細查核，包含尚待建置的三方核對、品管、多幣別等；原 115 項並非完整手冊功能總數。未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。"
+  "warning": "本次另有 16 項加細查核，包含尚待建置的完整儲位、多幣別、電子寄送等；原 115 項並非完整手冊功能總數。未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。"
 }
