@@ -1,6 +1,6 @@
 # 架構與 API
 
-基準：2026-11-02，核心試行版 v0.2.0；新增 API 及遷移見 [v0.2 操作與升級](v0.2操作與升級.md)。
+基準：2026-11-03，v0.4.3 互動展示與 Windows 本機版。新增功能、遷移與限制見 [v0.4 操作與升級](v0.4操作與升級.md)，歷史流程另見 v0.2／v0.3 文件。
 
 ## 執行架構
 
@@ -23,7 +23,8 @@ flowchart LR
 | --- | --- |
 | `src/schema.sql` | 表、外鍵、檢查、索引、流水防刪改觸發器 |
 | `src/core.mjs` | 數值、角色、範圍、交易狀態、庫存、帳款、分錄 |
-| `src/server.mjs` | HTTP、Cookie、CSRF、來源／Host、冪等、CSV、備份 |
+| `src/server.mjs` | 單機／持久化後端的啟動、監聽與停止 |
+| `src/application.mjs` | 共用 HTTP、Cookie、CSRF、來源／Host、冪等、CSV、備份 |
 | `src/print.mjs` | 黃單與 A4／A5 樣式 |
 | `src/seed.mjs` | 獨立虛構示範資料 |
 | `public/app.js`、`style.css` | 瀏覽器工作空間與響應版面 |
@@ -38,7 +39,7 @@ flowchart LR
 
 同一使用者、同一冪等碼、同一角色及內容會取得原結果；內容或角色不同則衝突。資料庫也為單號與轉單來源設唯一限制。
 
-目前為一個 Node 程序及一個 SQLite 檔案。20 個獨立帳號並行建單已通過功能測試，但這不代表長期負載或高可用保證。不要啟動多個程序共用此檔作水平擴充，也不要把 SQLite 檔放在網路磁碟供各工作站直接開啟。
+目前由一個 Node 程序服務多個獨立 SQLite 帳套；每個帳套各自一個檔案。20 個獨立帳號並行建單已通過功能測試，但這不代表長期負載或高可用保證。不要啟動多個程序共用此檔作水平擴充，也不要把 SQLite 檔放在網路磁碟供各工作站直接開啟。
 
 ## 庫存與成本
 
@@ -176,3 +177,50 @@ API 回傳金額／數量為整數分／千分單位；表單寫入使用一般�
 示範只能綁 loopback。多人部署應放在公司管理主機，配置 HTTPS 反向代理、正確 Host、憑證、服務常駐、備份與監控。本次沒有開放防火牆、公網或建立雲端服務。
 
 多節點、高寫入與大量歷史查詢，需評估 PostgreSQL、背景工作及伺服器分頁；不要用資料庫檔複製實作多主寫入。
+
+## v0.4 公司上下文與新增 API
+
+請求以 `X-ERP-Company` 指定公司代碼，預設 `default`；列印使用 `?company=代碼`。兩者同時提供但不一致會拒絕。未知公司不會回退其他資料庫。公司上下文透過 AsyncLocalStorage 在每個請求中隔離，Cookie 名稱包含連接埠與公司代碼，登入、CSRF、冪等及資料庫均獨立。
+
+`GET /api/companies` 只列供選擇登入的帳套名稱／代碼；`POST /api/companies` 限主要帳套管理員建立公司。`POST /api/company-summary-grants` 限來源公司管理員授權主要帳套帳號；`GET /api/company-summary` 限主要帳套財務角色，且只讀取有明確授權的公司。成本另檢查授權旗標與角色。
+
+| 範圍 | 主要 API |
+| --- | --- |
+| 合併進出貨 | POST `/api/fulfilment-batches`，GET `/api/fulfilment-batches/:id`，GET `/print/fulfilment-batches/:id` |
+| 批次月結 | GET `/api/monthly-bills/preview`，POST `/api/monthly-bills`，POST `/api/monthly-bills/:id/pay`，GET `/print/monthly-bills/:id` |
+| 訂單外部欄位 | GET／POST `/api/documents/:id/metadata` |
+| 分期排程 | POST `/api/subscriptions`，POST `/api/subscriptions/:id/status`，POST `/api/subscription-periods/:id/change` 或 `/execute` |
+| SKU／訂單匯入 | POST `/api/sku-mappings`、`/api/order-import-templates`、`/api/order-imports/preview`、`/api/order-imports/:id/commit` |
+| 自訂報表 | POST `/api/custom-reports`，GET `/api/custom-reports/:id`，GET `/print/custom-reports/:id` |
+| 呆帳 | POST `/api/bad-debts`、`/api/bad-debts/:id/action`（approve／reject／recover／reverse） |
+| 銀行對帳 | POST `/api/reconciliations/preview`、`/api/reconciliations/:id/commit` |
+| 費用分攤 | POST `/api/expense-allocations/preview`、`/api/expense-allocations`，GET `/api/expense-allocations/:id`，GET `/print/expense-allocations/:id` |
+| 背書／其他票據 | POST `/api/bill-restrictions`、`/api/endorsements`、`/api/endorsements/:id/action`、`/api/nontrade-bills`、`/api/nontrade-bills/:id/action` |
+| 批號／序號 | POST `/api/inventory-tracking`，GET `/api/inventory-lots/:id`；出入庫／調整／調撥等接受批號分配，使用基本單位數量 |
+| 字軌／發票設定 | POST `/api/invoice-ranges`、`/api/invoice-numbers`、`/api/invoice-print-profiles`、`/api/invoice-exchange-profiles`、`/api/invoice-exchanges/preview`、`/api/invoice-exchanges/:id/commit` |
+| 維修／寄售／租賃 | POST `/api/repairs`、`/api/repairs/:id/action`、`/api/repairs/:id/parts`、`/api/service-contracts`、`/api/service-contracts/:id/sell` 或 `/return`、`/api/rental-periods/:id/charge` |
+| POS | POST `/api/pos-stores`、`/api/pos-members`、`/api/pos-promotions`、`/api/loyalty-policy`、`/api/pos-shifts`、`/api/pos/quote`、`/api/pos/checkout`、`/api/pos-sales/:id/refund` |
+
+所有新增 POST 保留原本 CSRF、請求標頭、JSON、Origin、權限與冪等契約。POS 收銀權限是逐店明確委派的狹義交易能力，價格、倉庫、促銷、點數與收款帳戶由伺服器建立，不接受用戶端的權限／售價／核准旗標；不放寬一般業務主檔與辦公室單據的資料範圍。
+
+## v0.4.1 部署與匯入
+
+雲端入口為 `api/index.mjs`，後端為 `src/server.mjs`，部署設定與持久磁碟見 [雲端部署](雲端部署.md)。`ERP_PROXY_SECRET` 驗證代理公開網域；`ERP_SETUP_KEY` 保護首次建立帳套，`GET /api/status` 的 `setup_key_required` 提供表單顯示依據。代理模式啟動時必須設定不同的兩把密鑰，均至少 32 字元。`GET /healthz` 只回傳健康狀態與版本。
+
+`POST /api/master-import-templates` 保存／修改管理員的映射範本（kind、name、columns、defaults、id／version）；`POST /api/master-imports/preview` 接受 template_id、format，以及 CSV text 或 XLSX base64。`POST /api/imports/:id/commit` 確認既有或映射匯入；映射批次檢查來源雜湊及範本修訂，保存不可改寫的映射快照。完整欄位與檔案限制見 [更新說明](v0.4.1更新與部署.md)。
+
+## v0.4.2 互動展示
+
+`src/application.mjs` 提供共用應用處理器；單機入口仍為 `src/server.mjs`。線上入口依 `ERP_MODE` 選展示或正式代理；未指定模式且沒有後端網址時預設展示。
+
+展示的 `POST /api/demo-action` 收到分頁保存的加密狀態及原始 API 請求，在獨立暫存目錄還原經驗證的資料、執行共用處理器、打包新狀態並清除目錄。AES-256-GCM 驗證、八小時期限、檔名／數量／尺寸限制與精確 Host／Origin 檢查共同保護此展示入口。Cookie 值保存在加密狀態中，各分頁不會共用登入。不可將這個入口連到正式公司庫。
+
+`/runtime.js` 提供公開模式旗標，`public/demo-client.js` 在展示模式串行送出 API 請求並保存狀態，列印分頁、圖片與下載同樣使用目前資料。正式／單機模式仍直接呼叫原始 API。
+
+建置腳本產生 Build Output v3，單一 Node 24 函式包含應用程式、公開資源與僅供該次部署的私鑰。私鑰不在 public、不進 Git、不於紀錄輸出；重新部署使舊狀態失效。
+
+## v0.4.3 Windows 本機啟動
+
+`scripts/local.mjs` 管理固定資料路徑、原位置沿用、更新前完整備份與本機程序；設定保存在使用者 ERP-Local 目錄，程式更新不重設資料。後端透過 IPC 通知啟動完成，父啟動器關閉後會停止；健康檢查的 local_instance 僅用於識別這一份本機服務，不包含資料庫路徑或帳密。
+
+`src/local-lock.mjs` 使用獨立 SQLite 鎖保護同一根庫，程序退出後由系統釋放，不依賴 PID 是否被其他程序重用。`scripts/package-local.mjs` 複製固定程式檔與官方 Node 執行檔／授權，拒絕清除含資料的輸出目錄。Windows CI 先執行 `scripts/check-local-package.mjs` 驗證實際成品，再提供下載。

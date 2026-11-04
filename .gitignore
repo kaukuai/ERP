@@ -4,6 +4,9 @@ data/
 *.log
 .env
 .env.*
+!deploy/*.env.example
+vercel-public/
+.vercel/
 *.pem
 *.key
 *.p12
@@ -15,3 +18,6 @@ node_modules/
 coverage/
 .DS_Store
 Thumbs.db
+
+.company-workspaces/
+backups/

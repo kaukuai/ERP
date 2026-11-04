@@ -1,0 +1,19 @@
+export function migrateV10(db){
+  if(Number(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get()?.value)>=10)return;
+  db.exec('BEGIN IMMEDIATE');try{
+    db.exec(`
+      CREATE TABLE pos_stores(id INTEGER PRIMARY KEY,code TEXT UNIQUE NOT NULL,name TEXT NOT NULL,warehouse_id INTEGER NOT NULL REFERENCES warehouses(id),customer_id INTEGER NOT NULL REFERENCES partners(id),cash_account_id INTEGER NOT NULL REFERENCES bank_accounts(id),bank_account_id INTEGER NOT NULL REFERENCES bank_accounts(id),scanner_mode TEXT NOT NULL DEFAULT 'keyboard',receipt_width INTEGER NOT NULL DEFAULT 80,payment_provider TEXT NOT NULL DEFAULT 'manual',payment_note TEXT NOT NULL DEFAULT '',version INTEGER NOT NULL DEFAULT 1,active INTEGER NOT NULL DEFAULT 1);
+      CREATE TABLE pos_store_users(store_id INTEGER NOT NULL REFERENCES pos_stores(id),user_id INTEGER NOT NULL REFERENCES users(id),PRIMARY KEY(store_id,user_id));
+      CREATE TABLE loyalty_members(id INTEGER PRIMARY KEY,code TEXT UNIQUE NOT NULL,name TEXT NOT NULL,partner_id INTEGER REFERENCES partners(id),tier TEXT NOT NULL DEFAULT 'standard',points INTEGER NOT NULL DEFAULT 0,version INTEGER NOT NULL DEFAULT 1,active INTEGER NOT NULL DEFAULT 1);
+      CREATE TABLE loyalty_events(id INTEGER PRIMARY KEY,member_id INTEGER NOT NULL REFERENCES loyalty_members(id),points INTEGER NOT NULL,reference TEXT NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id),created_at TEXT NOT NULL);
+      CREATE TABLE pos_promotions(id INTEGER PRIMARY KEY,name TEXT NOT NULL,store_id INTEGER REFERENCES pos_stores(id),product_id INTEGER REFERENCES products(id),category TEXT NOT NULL DEFAULT '',member_tier TEXT NOT NULL DEFAULT '',discount_bp INTEGER NOT NULL CHECK(discount_bp BETWEEN 0 AND 10000),start_date TEXT NOT NULL,end_date TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,active INTEGER NOT NULL DEFAULT 1);
+      CREATE TABLE pos_shifts(id INTEGER PRIMARY KEY,store_id INTEGER NOT NULL REFERENCES pos_stores(id),user_id INTEGER NOT NULL REFERENCES users(id),opening_cash INTEGER NOT NULL,opened_at TEXT NOT NULL,closed_at TEXT NOT NULL DEFAULT '',counted_cash INTEGER,expected_cash INTEGER,reason TEXT NOT NULL DEFAULT '');
+      CREATE UNIQUE INDEX active_pos_shift ON pos_shifts(store_id,user_id) WHERE closed_at='';
+      CREATE TABLE pos_sales(id INTEGER PRIMARY KEY,no TEXT UNIQUE NOT NULL,store_id INTEGER NOT NULL REFERENCES pos_stores(id),shift_id INTEGER NOT NULL REFERENCES pos_shifts(id),fulfilment_id INTEGER UNIQUE NOT NULL REFERENCES fulfilments(id),member_id INTEGER REFERENCES loyalty_members(id),earned_points INTEGER NOT NULL,redeemed_points INTEGER NOT NULL,total INTEGER NOT NULL,created_by INTEGER NOT NULL REFERENCES users(id),created_at TEXT NOT NULL);
+      CREATE TABLE pos_tenders(id INTEGER PRIMARY KEY,sale_id INTEGER NOT NULL REFERENCES pos_sales(id),bank_account_id INTEGER NOT NULL REFERENCES bank_accounts(id),amount INTEGER NOT NULL CHECK(amount>0),method TEXT NOT NULL,reference TEXT NOT NULL,received INTEGER NOT NULL);
+      CREATE TABLE pos_refunds(id INTEGER PRIMARY KEY,sale_id INTEGER NOT NULL REFERENCES pos_sales(id),return_id INTEGER UNIQUE NOT NULL REFERENCES returns(id),shift_id INTEGER NOT NULL REFERENCES pos_shifts(id),bank_account_id INTEGER NOT NULL REFERENCES bank_accounts(id),amount INTEGER NOT NULL CHECK(amount>=0),created_by INTEGER NOT NULL REFERENCES users(id),created_at TEXT NOT NULL);
+    `);
+    for(const table of ['loyalty_events','pos_sales','pos_tenders','pos_refunds'])for(const action of ['UPDATE','DELETE'])db.exec(`CREATE TRIGGER no_${table}_${action.toLowerCase()} BEFORE ${action} ON ${table} BEGIN SELECT RAISE(ABORT,'immutable POS source'); END`);
+    db.prepare("UPDATE settings SET value='10' WHERE key='schema_version'").run();db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error;}
+}

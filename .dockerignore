@@ -1,0 +1,13 @@
+.git
+node_modules
+data
+backups
+.company-workspaces
+*.sqlite*
+*.db*
+*.log
+.env
+.env.*
+docs
+tests
+vercel-public

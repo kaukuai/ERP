@@ -1,18 +1,23 @@
 {
   "name": "cheng-erp",
-  "version": "0.3.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
-  "description": "成祥 ERP · 繁體中文進銷存與業務工作台",
-  "engines": { "node": ">=24.0.0" },
+  "description": "ERP · 繁體中文進銷存與業務工作台",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "start": "node src/server.mjs",
     "demo": "node src/server.mjs --demo",
     "dev": "node scripts/dev.mjs --demo",
     "dev:company": "node scripts/dev.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/core.mjs && node --check src/server.mjs && node --check src/finance.mjs && node --check src/migrations.mjs && node --check src/capabilities.mjs && node --check src/trade.mjs && node --check src/operations.mjs && node --check src/reports.mjs && node --check src/rebuild.mjs && node --check src/numbering.mjs && node --check src/migrate-v3.mjs && node --check src/print.mjs && node --check scripts/dev.mjs && node --check public/app.js && node --check public/finance-ui.js && node --check public/operations-ui.js",
+    "check": "node --check src/enterprise.mjs && node --check src/enterprise-common.mjs && node --check src/enterprise-integrity.mjs && node --check src/warehouse-management.mjs && node --check src/foreign-exchange.mjs && node --check src/document-delivery.mjs && node --check src/smtp-transport.mjs && node --check src/hr-payroll.mjs && node --check src/production.mjs && node --check src/migrate-v18.mjs && node --check src/migrate-v19.mjs && node --check src/migrate-v20.mjs && node --check src/migrate-v21.mjs && node --check src/migrate-v22.mjs && node --check scripts/delivery-worker.mjs && node --check public/enterprise-ui.js && node --check src/control-access.mjs && node --check src/controls.mjs && node --check src/quality.mjs && node --check src/vendor-bills.mjs && node --check src/migrate-v17.mjs && node --check public/controls-ui.js && node --check scripts/check-browser-demo.cjs && node --check src/governance.mjs && node --check src/migrate-v16.mjs && node --check public/governance-ui.js && node --check src/forms.mjs && node --check src/migrate-v15.mjs && node --check src/review-catalog.mjs && node --check public/form-model.js && node --check public/forms-ui.js && node --check src/access-control.mjs && node --check src/access-routes.mjs && node --check src/allowance-lines.mjs && node --check src/costing.mjs && node --check src/completion-workflows.mjs && node --check src/migrate-v13.mjs && node --check src/migrate-v14.mjs && node --check public/access-ui.js && node --check public/completion-ui.js && node --check scripts/backup-service.mjs && node --check src/local-lock.mjs && node --check scripts/check-local-package.mjs && node --check scripts/local.mjs && node --check scripts/package-local.mjs && node --check src/application.mjs && node --check src/demo-state.mjs && node --check src/vercel-demo.mjs && node --check public/demo-client.js && node --check public/demo-print.js && node --check src/deployment.mjs && node --check src/vercel-gateway.mjs && node --check api/index.mjs && node --check scripts/build-vercel.mjs && node --check scripts/healthcheck.mjs && node --check src/migrate-v12.mjs && node --check src/master-imports.mjs && node --check public/master-imports-ui.js && node --check src/migrate-v11.mjs && node --check src/companies.mjs && node --check src/migrate-v9.mjs && node --check src/migrate-v10.mjs && node --check src/service-workflows.mjs && node --check src/pos.mjs && node --check src/migrate-v8.mjs && node --check src/invoice-workflows.mjs && node --check src/migrate-v7.mjs && node --check src/inventory-tracking.mjs && node --check src/migrate-v6.mjs && node --check src/finance-workflows.mjs && node --check src/bill-workflows.mjs && node --check src/tabular.mjs && node --check src/migrate-v5.mjs && node --check src/order-workflows.mjs && node --check src/sku-orders.mjs && node --check src/custom-reports.mjs && node --check src/workflow-hub.mjs && node --check src/migrate-v4.mjs && node --check src/billing.mjs && node --check src/fulfilment-batches.mjs && node --check public/workflow-service-pos-ui.js && node --check public/workflow-company-ui.js && node --check public/workflow-stock-invoice-ui.js && node --check public/workflow-finance-ui.js && node --check public/workflows-extra-ui.js && node --check public/workflows-ui.js && node --check src/core.mjs && node --check src/server.mjs && node --check src/finance.mjs && node --check src/migrations.mjs && node --check src/capabilities.mjs && node --check src/trade.mjs && node --check src/operations.mjs && node --check src/reports.mjs && node --check src/rebuild.mjs && node --check src/numbering.mjs && node --check src/migrate-v3.mjs && node --check src/print.mjs && node --check scripts/pre-upgrade.mjs && node --check scripts/capability-report.mjs && node --check scripts/dev.mjs && node --check public/app.js && node --check public/finance-ui.js && node --check public/operations-ui.js",
     "verify": "npm run check && npm test",
-    "capabilities": "node scripts/capability-report.mjs"
+    "capabilities": "node scripts/capability-report.mjs",
+    "local": "node scripts/local.mjs",
+    "local:backup": "node scripts/local.mjs --backup",
+    "package:local": "node scripts/package-local.mjs"
   }
 }
