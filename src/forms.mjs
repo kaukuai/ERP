@@ -1,4 +1,5 @@
 import "../public/form-model.js";
+import { assertFormat, formatAllowed } from "./governance.mjs";
 import { fail, integer, txt, now, permit, has } from "./core.mjs";
 import { accessContext } from "./access-control.mjs";
 const M = globalThis.ERPFormModel;
@@ -23,6 +24,18 @@ export class Forms {
   }
   permission(u, resource, action, id) {
     permit(u, "all");
+    if (id) {
+      if (resource === "form_templates")
+        assertFormat(this.e, u, "form", id, action);
+      if (resource === "form_entries") {
+        const row = this.e.access.one(
+          "SELECT template_id FROM form_entries WHERE id=?",
+          integer(id, 1),
+        );
+        if (row)
+          assertFormat(this.e, u, "form", row.template_id, "entry_" + action);
+      }
+    }
     const p = this.e.access.policy(u);
     if (p.configured) {
       this.e.access.assert(p, resource, action, resource, id);
@@ -85,8 +98,43 @@ export class Forms {
         )
       : [];
     return {
-      form_templates: templates,
-      form_entries: entries,
+      form_templates: templates
+        .filter((t) => formatAllowed(this.e, u, "form", t.id, "read"))
+        .map((t) => ({
+          ...t,
+          allowed: Object.fromEntries(
+            ["update", "print", "export", "fill"].map((a) => [
+              a,
+              formatAllowed(this.e, u, "form", t.id, a),
+            ]),
+          ),
+        })),
+      form_entries: entries
+        .filter((r) => {
+          const row = this.e.access.one(
+            "SELECT template_id FROM form_entries WHERE id=?",
+            r.id,
+          );
+          return formatAllowed(
+            this.e,
+            u,
+            "form",
+            row.template_id,
+            "entry_read",
+          );
+        })
+        .map((r) => ({
+          ...r,
+          allowed: {
+            print: formatAllowed(
+              this.e,
+              u,
+              "form",
+              r.template_id,
+              "entry_print",
+            ),
+          },
+        })),
       form_permissions: {
         design: can("form_templates", "create"),
         edit: can("form_templates", "update"),
@@ -187,6 +235,7 @@ export class Forms {
       )
         fail("表單已變更或已完成送出，請重新開啟", 409);
       const template = old ? null : this.template(u, integer(b.template_id, 1));
+      if (template) assertFormat(this.e, u, "form", template.id, "fill");
       if (
         template &&
         (!template.active ||

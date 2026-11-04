@@ -310,6 +310,10 @@ export function guardRequest(e, u, path, method, b = {}, query = {}) {
     ].includes(path)
   )
     return;
+  if (path.startsWith("/api/governance/")) {
+    if (!/^\/api\/governance\/requests\/\d+$/.test(path) || method!=="GET") e.access.requireAdmin(u);
+    return;
+  }
   if (path.startsWith("/api/access/")) {
     e.access.requireAdmin(u);
     return;

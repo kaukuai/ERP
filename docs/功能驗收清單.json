@@ -6,9 +6,9 @@
     "reference": "https://www.scribd.com/document/982017657/數碼一號-進銷存系統操作手冊",
     "note": "頁碼以原廠公開 PDF 為準。比對功能行為；不複製廠商程式、版面或操作文字。"
   },
-  "version": "0.6.0",
+  "version": "0.7.0",
   "expanded": {
-    "checked_at": "2026-11-03",
+    "checked_at": "2026-11-04",
     "note": "原 115 項只涵蓋既定驗收；下列為附件需求及重新拆細的手冊／其他產品差距，不可用原清單待建置為零宣稱全功能對等。",
     "rows": [
       {
@@ -30,10 +30,10 @@
       {
         "id": "M01",
         "name": "可逾期打單日數",
-        "status": "missing",
+        "status": "usable",
         "source": "指定手冊 PDF 第 6 頁",
-        "acceptance": "已有結帳日限制；尚無可設定「距今天最多幾天」的補打單期限。",
-        "evidence": "core.mjs：checkPeriod"
+        "acceptance": "可分交易、庫存及帳務設定距今天的補打天數，空白不限、0 只允許今天及未來；依台北日期計算，與結帳日同時檢查，保存政策修訂與操作稽核。",
+        "evidence": "governance.test.mjs、governance-http.test.mjs"
       },
       {
         "id": "M02",
@@ -54,10 +54,10 @@
       {
         "id": "M04",
         "name": "逐人逐一報表格式授權",
-        "status": "partial",
+        "status": "usable",
         "source": "指定手冊 PDF 第 75–78 頁",
-        "acceptance": "自訂報表有角色授權；新版表單有功能動作及擁有人資料範圍。尚無每位使用者對每個特定版型的獨立允許／拒絕矩陣。",
-        "evidence": "custom-reports.mjs、forms.mjs"
+        "acceptance": "表單與自訂報表可逐人逐版型設定動作，與原功能／資料範圍／成本授權取交集；表單紀錄的新增、檢視、修改、送出、取消與列印分開設定。撤權登出、修訂衝突及直接 API 都有驗證。",
+        "evidence": "governance.test.mjs、governance-http.test.mjs、browser-governance.cjs"
       },
       {
         "id": "M05",
@@ -78,10 +78,10 @@
       {
         "id": "V01",
         "name": "條件式多階簽核與代理",
-        "status": "missing",
+        "status": "usable",
         "source": "Odoo Studio Approval rules；ERPNext Workflows；Business Central Approval workflows",
-        "acceptance": "現有主管核准及組織權限不等於金額門檻、循序／會簽、代理及排除同人多階的簽核引擎。",
-        "evidence": "core.mjs：transition；access-control.mjs"
+        "acceptance": "報價、銷售訂單及採購可依含稅金額設定循序任一人／全部會簽、指定人或經辦上階、限期代理、排除自核與跨階同人；送審快照與不可覆寫決定，最後一階才核准／預留庫存。範圍不包含任意模組流程圖。",
+        "evidence": "governance.test.mjs、governance-http.test.mjs、browser-governance.cjs"
       },
       {
         "id": "V02",
@@ -141,9 +141,9 @@
       }
     ],
     "summary": {
-      "usable": 2,
-      "partial": 6,
-      "missing": 8,
+      "usable": 5,
+      "partial": 5,
+      "missing": 6,
       "external": 0
     }
   },
@@ -1311,5 +1311,5 @@
       "priority": "P1 核心補齊"
     }
   ],
-  "warning": "本次另有 16 項加細查核，包含尚待建置的簽核、品管、多幣別等；原 115 項並非完整手冊功能總數。未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。"
+  "warning": "本次另有 16 項加細查核，包含尚待建置的三方核對、品管、多幣別等；原 115 項並非完整手冊功能總數。未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。"
 }

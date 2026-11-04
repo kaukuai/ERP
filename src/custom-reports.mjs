@@ -1,3 +1,4 @@
+import { assertFormat,formatAllowed } from './governance.mjs';
 import { legacySales } from './access-control.mjs';
 import { permit,has,fail,integer,txt,dateValue } from './core.mjs';
 import { escapeHTML as E } from './print.mjs';
@@ -14,13 +15,14 @@ const moneyFields=new Set(['net','tax','total','cost','value']),qtyFields=new Se
 export class CustomReports {
   constructor(e){this.e=e;}
   definition(u,id,printing=false){
-    permit(u,'all');const r=this.e.get('SELECT * FROM report_designs WHERE id=?',integer(id,1));if(!r)fail('報表不存在',404);
+    permit(u,'all');assertFormat(this.e,u,'report',id,printing?'print':'read');const r=this.e.get('SELECT * FROM report_designs WHERE id=?',integer(id,1));if(!r)fail('報表不存在',404);
     for(const key of ['columns','view_roles','print_roles'])r[key]=JSON.parse(r[key]);
-    if(!r.view_roles.includes(u.role)||(printing&&!r.print_roles.includes(u.role)))fail('沒有此報表的檢視或列印權限',403);return r;
+    if(!r.view_roles.includes(u.role)||(printing&&!r.print_roles.includes(u.role)))fail('沒有此報表的檢視或列印權限',403);return {...r,allowed:{print:formatAllowed(this.e,u,'report',r.id,'print')}};
   }
   save(u,b){
     permit(u,'admin');return this.e.tx(()=>{
       const old=b.id?this.e.get('SELECT * FROM report_designs WHERE id=?',integer(b.id,1)):null;
+      if(old)assertFormat(this.e,u,'report',old.id,'update');
       if(b.id&&(!old||old.version!==integer(b.version,1)))fail('報表版型已更新或不存在',409);
       if(!Object.hasOwn(reportCatalog,b.dataset)||!Array.isArray(b.columns)||!b.columns.length||b.columns.length>16)fail('報表資料集或欄位錯誤');
       const seen=new Set(),columns=b.columns.map(c=>{if(!Object.hasOwn(reportCatalog[b.dataset].fields,c.key)||seen.has(c.key))fail('報表欄位重複或不支援');seen.add(c.key);return {key:c.key,label:txt(c.label||reportCatalog[b.dataset].fields[c.key],40,true)};});
@@ -50,5 +52,5 @@ export class CustomReports {
     this.e.log(u,'print_custom_report','report_design',r.id,{count:result.rows.length});
     return printPage(r.name,`<p>${E(result.note)}</p><table><thead><tr>${r.columns.map(c=>`<th>${E(c.label)}</th>`).join('')}</tr></thead><tbody>${result.rows.map(row=>`<tr>${r.columns.map(c=>`<td>${E(display(c.key,row[c.key]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`,`@page{size:${r.paper.toUpperCase()} ${r.orientation}}`);
   }
-  data(u){return {report_catalog:u.role==='admin'?reportCatalog:undefined,report_designs:this.e.all('SELECT * FROM report_designs ORDER BY name').filter(r=>JSON.parse(r.view_roles).includes(u.role)).map(r=>({...r,columns:JSON.parse(r.columns),view_roles:JSON.parse(r.view_roles),print_roles:JSON.parse(r.print_roles)}))};}
+  data(u){return {report_catalog:u.role==='admin'?reportCatalog:undefined,report_designs:this.e.all('SELECT * FROM report_designs ORDER BY name').filter(r=>JSON.parse(r.view_roles).includes(u.role)&&formatAllowed(this.e,u,'report',r.id,'read')).map(r=>({...r,columns:JSON.parse(r.columns),view_roles:JSON.parse(r.view_roles),print_roles:JSON.parse(r.print_roles)}))};}
 }

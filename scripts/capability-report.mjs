@@ -1,12 +1,13 @@
 import { writeFileSync } from 'node:fs';
 import { capabilityAudit } from '../src/capabilities.mjs';
 const a=capabilityAudit(),labels=a.statusLabels,cell=s=>String(s).replaceAll('|','／');
-const lines=['# 功能對標與驗收','',`更新：2026-11-03 · 本系統 ${a.version} · 共 ${a.rows.length} 項需求。`,'',
+const lines=['# 功能對標與驗收','',`更新：2026-11-04 · 本系統 ${a.version} · 共 ${a.rows.length} 項需求。`,'',
 '依原廠公開 418 頁手冊八大章整理，另標出原廠現行官網擴充與本公司強化。各列狀態只涵蓋該列驗收行為，不代表整個模組或正式上線已完成。這是獨立功能歸納，不複製廠商程式及版面。','',
 `來源：[使用者指定手冊](${a.source.reference})、[原廠公開 PDF](${a.source.url})、[原廠現行功能](https://www.hotzsoft.com/Article?d=028&g=S00029)。手冊示例主要為 2021 年，正式發票與外部 API 須依當期官方介面驗證。`,'',
 '## 最新比對結果','','| 狀態 | 項目數 |','| --- | ---: |',...Object.entries(a.summary).map(([k,n])=>`| ${labels[k]} | ${n} |`),'',
 'v0.5 另補齊 24 項原部分具備的軟體驗收範圍。剩餘 6 項部分具備包含真實異地復原、複合來源月成本、正式發票規格與回執、正式部署／長時間負載、真實資料移轉及 POS 實機／串接；另 14 項外部整合保留原條件。','',
 'v0.6 另提供表單設計器。重新查核拆出 16 項補充，其中仍有待建置項目；原 115 項不代表所有手冊細節已完整。詳見 [完整性複查與來源](完整性複查與來源.md)。','',
+'v0.7 新增補打單期限、報價／訂單／採購多階簽核及逐人逐版型授權，見 [v0.7 簽核與政策](v0.7簽核與政策.md)。補充 16 項現在為 5 可操作、5 部分、6 待建置。','',
 '## 本輪完成的可操作驗收項目','',
 ...a.rows.filter(r=>r.evidence?.includes('completion-workflows.test.mjs')||['B02','B10','B13','B28','P05','S02','S03','S04','S07','E02','E03','F02','F03','F09','F11','T06','T07','C02','X08','X09'].includes(r.id)).map(r=>`- ${r.id} ${r.name}：${r.acceptance}`),'',
 '最新操作、權限及升級見 [v0.5 操作與權限](v0.5操作與權限.md)，原流程另見 v0.4、v0.3 與 v0.2 歷史文件。','',
@@ -20,7 +21,7 @@ const lines=['# 功能對標與驗收','',`更新：2026-11-03 · 本系統 ${a.
 '流水重建先預覽與自動備份，再核對來源快照與總帳；不能重寫歷史流水或補平衡分錄掩蓋錯誤。公司資料庫未執行測試重建或測試交易。','',
 '## 全項驗收清單',''];
 for(const group of new Set(a.rows.map(r=>r.group))){lines.push('### '+group,'','| ID | 功能 | 來源頁次 | 本系統現況 | 驗收條件／差距 | 證據或優先序 |','| --- | --- | --- | --- | --- | --- |');for(const r of a.rows.filter(r=>r.group===group))lines.push('| '+[r.id,r.name,r.pages,labels[r.status],r.acceptance,r.evidence||r.priority].map(cell).join(' | ')+' |');lines.push('');}
-lines.push('## v0.6 加細查核','',a.expanded.note,'','| ID | 項目 | 狀態 | 來源 | 行為／差距 |','| --- | --- | --- | --- | --- |',...a.expanded.rows.map(r=>'| '+[r.id,r.name,labels[r.status],r.source,r.acceptance].map(cell).join(' | ')+' |'),'');
+lines.push('## 加細查核（v0.7 更新）','',a.expanded.note,'','| ID | 項目 | 狀態 | 來源 | 行為／差距 |','| --- | --- | --- | --- | --- |',...a.expanded.rows.map(r=>'| '+[r.id,r.name,labels[r.status],r.source,r.acceptance].map(cell).join(' | ')+' |'),'');
 writeFileSync(new URL('../docs/功能對標與驗收.md',import.meta.url),lines.join('\n'));
 writeFileSync(new URL('../docs/功能驗收清單.json',import.meta.url),JSON.stringify(a,null,2));
 console.log(JSON.stringify({items:a.rows.length,...a.summary}));

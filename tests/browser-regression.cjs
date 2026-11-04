@@ -81,13 +81,56 @@ let browser;
               p = el.parentElement.getBoundingClientRect();
             return a.right > p.right + 2 || a.left < p.left - 2;
           }).length;
+          const controls = [];
+          for (const cell of document.querySelectorAll(".modal td")) {
+            const c = cell.getBoundingClientRect();
+            const items = [
+              ...cell.querySelectorAll(
+                "input:not([type=hidden]),select,textarea,button,img",
+              ),
+            ].filter(
+              (el) =>
+                el.getClientRects().length &&
+                getComputedStyle(el).display !== "none",
+            );
+            for (const el of items) {
+              const r = el.getBoundingClientRect();
+              if (
+                r.left < c.left - 2 ||
+                r.right > c.right + 2 ||
+                r.top < c.top - 2 ||
+                r.bottom > c.bottom + 2
+              )
+                controls.push("outside:" + (el.name || el.tagName));
+            }
+            for (let i = 0; i < items.length; i++)
+              for (let j = i + 1; j < items.length; j++) {
+                if (items[i].contains(items[j]) || items[j].contains(items[i]))
+                  continue;
+                const a = items[i].getBoundingClientRect(),
+                  b = items[j].getBoundingClientRect();
+                if (
+                  Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 &&
+                  Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2
+                )
+                  controls.push(
+                    "overlap:" + items[i].name + ":" + items[j].name,
+                  );
+              }
+          }
           return {
+            controls,
             modal: modal.scrollWidth > modal.clientWidth + 2,
             body: body.scrollWidth > body.clientWidth + 2,
             grid,
           };
         });
-        if (issues.modal || issues.body || issues.grid)
+        if (
+          issues.modal ||
+          issues.body ||
+          issues.grid ||
+          issues.controls.length
+        )
           bad.push({ width, key, state, ...issues });
         checked++;
       }

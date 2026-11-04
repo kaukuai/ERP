@@ -15,6 +15,8 @@ import { migrateV11 } from './migrate-v11.mjs';
 import { migrateV12 } from './migrate-v12.mjs';
 import { migrateV14 } from './migrate-v14.mjs';
 import { migrateV15 } from './migrate-v15.mjs';
+import { migrateV16 } from './migrate-v16.mjs';
+import { startApproval,advanceApproval,cancelApproval,checkEntryWindow } from './governance.mjs';
 import { migrateV13 } from './migrate-v13.mjs';
 import { AccessControl,accessContext,detailedHas,legacySales } from './access-control.mjs';
 import { schemaVersion } from './schema-version.mjs';
@@ -68,7 +70,7 @@ export class ERP {
     this.db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').run('schema_version','1');
     const accounts=[['1000','銀行及現金','asset'],['1100','應收帳款','asset'],['1200','存貨','asset'],['1250','借出存貨','asset'],['1300','進項稅額','asset'],['2000','應付帳款','liability'],['2100','銷項稅額','liability'],['2200','借入存貨義務','liability'],['3000','期初權益','equity'],['4000','銷貨收入','revenue'],['5000','銷貨成本','expense'],['5100','存貨調整損益','expense']];
     for(const a of accounts) this.db.prepare('INSERT OR IGNORE INTO accounts VALUES(?,?,?)').run(...a);
-    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);migrateV13(this.db);migrateV14(this.db);migrateV15(this.db);this.access=new AccessControl(this);
+    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);migrateV13(this.db);migrateV14(this.db);migrateV15(this.db);migrateV16(this.db);this.access=new AccessControl(this);
     }catch(error){this.db.close();throw error;}
   }
   close(){this.db.close();}
@@ -110,7 +112,7 @@ export class ERP {
     for(const [k,v] of Object.entries(fields))this.run('INSERT OR REPLACE INTO settings VALUES(?,?)',k,v);
     this.log(u,'update','settings',1,fields);return this.settings();
   });}
-  checkPeriod(d=today(),module='all'){const moduleDate=this.get('SELECT max(closed_until) date FROM module_closings WHERE module=?',module)?.date;if(moduleDate&&d<=moduleDate)fail('此模組日期已結帳，請由完整權限管理員記錄原因後重開',409);const closed=this.settings().closed_until;if(closed&&d<=closed)fail('此日期已結帳，不能新增過帳資料',409);}
+  checkPeriod(d=today(),module='all'){checkEntryWindow(this,d,module);const moduleDate=this.get('SELECT max(closed_until) date FROM module_closings WHERE module=?',module)?.date;if(moduleDate&&d<=moduleDate)fail('此模組日期已結帳，請由完整權限管理員記錄原因後重開',409);const closed=this.settings().closed_until;if(closed&&d<=closed)fail('此日期已結帳，不能新增過帳資料',409);}
   partner(u,id,kind){const p=this.get('SELECT * FROM partners WHERE id=? AND active=1',integer(id,1));if(!p)fail('找不到啟用的客戶／供應商',404);if(kind&&p.kind!==kind&&p.kind!=='both')fail('往來對象類型錯誤');if(legacySales(u)&&p.owner_id&&p.owner_id!==u.id)fail('只能存取自己負責的客戶',403);return p;}
   savePartner(u,b){permit(u,'partners');return this.tx(()=>{
     const id=b.id?integer(b.id,1):0,old=id?this.partner(u,id):null;
@@ -169,9 +171,10 @@ export class ERP {
   transition(u,id,action,b={}){return this.tx(()=>{
     const d=this.doc(u,id);this.checkPeriod(d.date,'trade');if(b.version!==undefined&&integer(b.version,1)!==d.version)fail('單據已更新，請重新載入',409);
     let status=d.status;
-    if(action==='submit'){permit(u,d.kind==='purchase'?'buy':'sell');if(status!=='draft')fail('只有草稿可以送審',409);status='pending';}
+    if(action==='submit'){permit(u,d.kind==='purchase'?'buy':'sell');if(status!=='draft')fail('只有草稿可以送審',409);startApproval(this,u,d);status='pending';}
     else if(action==='approve'){
       permit(u,'approve');if(status!=='pending')fail('只有待審核單據可以核准',409);
+      if(!advanceApproval(this,u,d,'approve',b)){this.run('UPDATE documents SET version=version+1,updated_at=? WHERE id=?',now(),d.id);return this.doc(u,d.id);}
       if(d.kind==='quote'&&d.valid_until<today())fail('報價已過有效期限');
       if(d.kind==='order'){
         const p=this.partner(u,d.partner_id);const exposure=this.get("SELECT COALESCE(sum(amount-paid),0) n FROM open_items WHERE partner_id=? AND kind='receivable'",p.id).n+this.get("SELECT COALESCE(sum(amount-paid),0) n FROM opening_items WHERE partner_id=? AND kind='receivable'",p.id).n+this.get("SELECT COALESCE(sum(amount),0) n FROM bills WHERE partner_id=? AND kind='receivable' AND status IN ('received','deposited')",p.id).n;
@@ -179,10 +182,10 @@ export class ERP {
         if(p.credit_limit&&exposure+committed+d.total>p.credit_limit)fail('此訂單會超過客戶信用額度，請先收款或調整額度',409);
         for(const l of d.lines){if(!l.track_stock)continue;const s=this.stock(l.product_id,d.warehouse_id);if(s.qty-s.reserved<l.base_qty)fail(`${l.name} 可用庫存不足，請先進貨或調撥`,409);this.run('UPDATE stocks SET reserved=reserved+? WHERE product_id=? AND warehouse_id=?',l.base_qty,l.product_id,d.warehouse_id);}
       }status='approved';
-    }else if(action==='reject'){permit(u,'approve');if(status!=='pending')fail('狀態不允許退回',409);if(!txt(b.reason,500,true))fail('請填退回原因');status='rejected';}
+    }else if(action==='reject'){permit(u,'approve');if(status!=='pending')fail('狀態不允許退回',409);if(!txt(b.reason,500,true))fail('請填退回原因');advanceApproval(this,u,d,'reject',b);status='rejected';}
     else if(action==='cancel'){
       permit(u,'approve');txt(b.reason,500,true);if(['cancelled','completed','partial','converted'].includes(status)||d.lines.some(l=>l.done_qty>0))fail('已有後續交易或已結案，不能取消；請使用退貨流程',409);
-      if(d.kind==='order'&&status==='approved')for(const l of d.lines.filter(l=>l.track_stock))this.run('UPDATE stocks SET reserved=reserved-? WHERE product_id=? AND warehouse_id=?',l.base_qty,l.product_id,d.warehouse_id);status='cancelled';
+      if(d.kind==='order'&&status==='approved')for(const l of d.lines.filter(l=>l.track_stock))this.run('UPDATE stocks SET reserved=reserved-? WHERE product_id=? AND warehouse_id=?',l.base_qty,l.product_id,d.warehouse_id);cancelApproval(this,d.id);status='cancelled';
     }else fail('未知單據操作');
     this.run('UPDATE documents SET status=?,version=version+1,updated_at=? WHERE id=?',status,now(),d.id);this.log(u,action,'document',d.id,{from:d.status,to:status,reason:b.reason||''});return this.doc(u,d.id);
   });}

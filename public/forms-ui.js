@@ -49,7 +49,7 @@ function formsPage() {
         ["名稱", "資料來源", "修訂", "狀態", "操作"],
         (d.form_templates || []).map(
           (t) =>
-            `<tr><td>${E(t.name)}</td><td>${E(FM.kinds[t.kind])}</td><td>${t.version}</td><td>${t.active ? "使用中" : "已停用"}</td><td><div class="fd-actions">${t.kind === "free" && t.active && d.form_permissions.fill ? btn("填寫", "form-fill", t.id, "small") : ""}${d.form_permissions.print ? `<a class="btn small" target="_blank" rel="noopener" href="${formLink("/print/form-templates/" + t.id)}">空白列印</a>` : ""}${d.form_permissions.edit ? btn("編輯版型", "form-edit", t.id, "small") : ""}${d.form_permissions.design ? btn("複製", "form-copy", t.id, "small") : ""}${d.form_permissions.export ? btn("匯出版型", "form-export", t.id, "small") : ""}</div></td></tr>`,
+            `<tr><td>${E(t.name)}</td><td>${E(FM.kinds[t.kind])}</td><td>${t.version}</td><td>${t.active ? "使用中" : "已停用"}</td><td><div class="fd-actions">${t.kind === "free" && t.active && t.allowed?.fill && d.form_permissions.fill ? btn("填寫", "form-fill", t.id, "small") : ""}${d.form_permissions.print && t.allowed?.print ? `<a class="btn small" target="_blank" rel="noopener" href="${formLink("/print/form-templates/" + t.id)}">空白列印</a>` : ""}${d.form_permissions.edit && t.allowed?.update ? btn("編輯版型", "form-edit", t.id, "small") : ""}${d.form_permissions.design ? btn("複製", "form-copy", t.id, "small") : ""}${d.form_permissions.export && t.allowed?.export ? btn("匯出版型", "form-export", t.id, "small") : ""}</div></td></tr>`,
         ),
       ),
     ) +
@@ -59,7 +59,7 @@ function formsPage() {
         ["表單編號", "標題", "狀態", "範本修訂", "操作"],
         (d.form_entries || []).map(
           (r) =>
-            `<tr><td>${E(r.no)}</td><td>${E(r.title)}</td><td>${E(formStatus[r.status])}</td><td>${r.template_version}</td><td>${btn("開啟", "form-entry", r.id, "small")}${d.form_permissions.entry_print ? `<a class="btn small" target="_blank" rel="noopener" href="${formLink("/print/form-entries/" + r.id)}">列印</a>` : ""}</td></tr>`,
+            `<tr><td>${E(r.no)}</td><td>${E(r.title)}</td><td>${E(formStatus[r.status])}</td><td>${r.template_version}</td><td>${btn("開啟", "form-entry", r.id, "small")}${d.form_permissions.entry_print && r.allowed?.print ? `<a class="btn small" target="_blank" rel="noopener" href="${formLink("/print/form-entries/" + r.id)}">列印</a>` : ""}</td></tr>`,
         ),
       ),
       "最多顯示最新 500 筆本人或授權範圍內的紀錄。",
@@ -489,7 +489,11 @@ async function formsAction(action, id) {
   if (action === "form-doc-print") {
     const doc = await api("/api/documents/" + id),
       ts = (S.data.form_templates || []).filter(
-        (t) => t.active && t.kind === doc.kind,
+        (t) =>
+          t.active &&
+          t.kind === doc.kind &&
+          t.allowed?.print &&
+          S.data.form_permissions.print,
       );
     modal(
       "選擇列印版型",

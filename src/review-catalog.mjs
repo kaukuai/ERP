@@ -20,10 +20,10 @@ export const reviewItems = [
   [
     "M01",
     "可逾期打單日數",
-    "missing",
+    "usable",
     "指定手冊 PDF 第 6 頁",
-    "已有結帳日限制；尚無可設定「距今天最多幾天」的補打單期限。",
-    "core.mjs：checkPeriod",
+    "可分交易、庫存及帳務設定距今天的補打天數，空白不限、0 只允許今天及未來；依台北日期計算，與結帳日同時檢查，保存政策修訂與操作稽核。",
+    "governance.test.mjs、governance-http.test.mjs",
   ],
   [
     "M02",
@@ -44,10 +44,10 @@ export const reviewItems = [
   [
     "M04",
     "逐人逐一報表格式授權",
-    "partial",
+    "usable",
     "指定手冊 PDF 第 75–78 頁",
-    "自訂報表有角色授權；新版表單有功能動作及擁有人資料範圍。尚無每位使用者對每個特定版型的獨立允許／拒絕矩陣。",
-    "custom-reports.mjs、forms.mjs",
+    "表單與自訂報表可逐人逐版型設定動作，與原功能／資料範圍／成本授權取交集；表單紀錄的新增、檢視、修改、送出、取消與列印分開設定。撤權登出、修訂衝突及直接 API 都有驗證。",
+    "governance.test.mjs、governance-http.test.mjs、browser-governance.cjs",
   ],
   [
     "M05",
@@ -68,10 +68,10 @@ export const reviewItems = [
   [
     "V01",
     "條件式多階簽核與代理",
-    "missing",
+    "usable",
     "Odoo Studio Approval rules；ERPNext Workflows；Business Central Approval workflows",
-    "現有主管核准及組織權限不等於金額門檻、循序／會簽、代理及排除同人多階的簽核引擎。",
-    "core.mjs：transition；access-control.mjs",
+    "報價、銷售訂單及採購可依含稅金額設定循序任一人／全部會簽、指定人或經辦上階、限期代理、排除自核與跨階同人；送審快照與不可覆寫決定，最後一階才核准／預留庫存。範圍不包含任意模組流程圖。",
+    "governance.test.mjs、governance-http.test.mjs、browser-governance.cjs",
   ],
   [
     "V02",
@@ -131,7 +131,7 @@ export const reviewItems = [
   ],
 ];
 export const expandedAudit = () => ({
-  checked_at: "2026-11-03",
+  checked_at: "2026-11-04",
   note: "原 115 項只涵蓋既定驗收；下列為附件需求及重新拆細的手冊／其他產品差距，不可用原清單待建置為零宣稱全功能對等。",
   rows: reviewItems.map(([id, name, status, source, acceptance, evidence]) => ({
     id,
