@@ -1,0 +1,13 @@
+.enterprise-workspace .fd-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.enterprise-workspace td{overflow-wrap:anywhere}
+.enterprise-rows{min-width:0;max-width:100%;margin-top:20px}
+.enterprise-rows .table-wrap{max-width:100%;overflow-x:auto}
+.enterprise-rows th,.enterprise-rows td{min-width:145px;vertical-align:top}
+.enterprise-rows input,.enterprise-rows select,.enterprise-rows textarea{width:100%;min-width:0;box-sizing:border-box}
+.enterprise-rows .field{min-width:0}
+.ent-check{display:flex;align-items:flex-start;gap:8px;margin:10px 0;overflow-wrap:anywhere}
+.ent-check input{width:auto;flex-shrink:0;margin-top:4px}
+.enterprise-workspace small{display:block}
+.modal-foot:has([data-action^="ent-"]){flex-wrap:wrap;gap:8px}
+.modal-foot:has([data-action^="ent-"]) .btn{white-space:normal}
+@media(max-width:600px){.enterprise-workspace .fd-actions .btn{white-space:normal}.enterprise-rows th,.enterprise-rows td{min-width:135px}}

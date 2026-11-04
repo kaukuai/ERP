@@ -19,7 +19,7 @@ export function packageLocal(output=join(root,'artifacts/local/ERP-local')){
     }
   }
   for(const folder of ['src','public','vendor'])copyTree(folder);
-  for(const file of ['scripts/local.mjs','scripts/pre-upgrade.mjs','scripts/backup-service.mjs','THIRD-PARTY-NOTICES.md']){const destination=join(output,'app',file);mkdirSync(dirname(destination),{recursive:true});copyFileSync(join(root,file),destination);}
+  for(const file of ['scripts/local.mjs','scripts/delivery-worker.mjs','scripts/pre-upgrade.mjs','scripts/backup-service.mjs','THIRD-PARTY-NOTICES.md']){const destination=join(output,'app',file);mkdirSync(dirname(destination),{recursive:true});copyFileSync(join(root,file),destination);}
   const original=JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
   writeFileSync(join(output,'app/package.json'),JSON.stringify({name:'erp-local',version:original.version,private:true,type:'module',engines:{node:'24.x'},scripts:{start:'node scripts/local.mjs',backup:'node scripts/local.mjs --backup'}},null,2));
   mkdirSync(join(output,'runtime'));

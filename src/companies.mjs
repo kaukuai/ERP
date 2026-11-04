@@ -55,6 +55,7 @@ export class Companies {
       if(!grant)continue;
       const row={slug:company.slug,name:e.settings().company,currency:e.settings().currency||'TWD',sales_net:e.get("SELECT COALESCE(sum(f.net-COALESCE((SELECT sum(net) FROM returns WHERE fulfilment_id=f.id),0)-COALESCE((SELECT sum(net) FROM allowances WHERE fulfilment_id=f.id),0)),0) n FROM fulfilments f WHERE f.kind='shipment'").n};
       for(const [key,kind,state]of [['receivables','receivable','posted'],['payables','payable','posted'],['pending_receivables','receivable','pending'],['pending_payables','payable','pending']])row[key]=e.get('SELECT COALESCE(sum(amount-paid),0) n FROM open_items WHERE kind=? AND billing_state=?',kind,state).n+(state==='posted'?e.get('SELECT COALESCE(sum(amount-paid),0) n FROM opening_items WHERE kind=?',kind).n:0);
+      row.foreign_receivables_base=e.get("SELECT COALESCE(sum(book_value),0) n FROM foreign_accounts WHERE kind='receivable' AND status='posted'").n;row.foreign_payables_base=e.get("SELECT COALESCE(sum(book_value),0) n FROM foreign_accounts WHERE kind='payable' AND status='posted'").n;row.receivables+=row.foreign_receivables_base;row.payables+=row.foreign_payables_base;
       if(grant.include_cost&&has(u,'cost')){row.inventory_value=e.get('SELECT COALESCE(sum(value),0) n FROM stocks').n;row.cost=e.get("SELECT COALESCE(sum(f.cost-COALESCE((SELECT sum(cost) FROM returns WHERE fulfilment_id=f.id),0)),0) n FROM fulfilments f WHERE f.kind='shipment'").n;}
       rows.push(row);
     }

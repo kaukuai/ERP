@@ -18,6 +18,15 @@ const actions = {
   print: "列印",
 };
 const defs = [
+  ["payroll_runs","薪資與法定扣繳試算","admin","payroll_runs payroll_lines payroll_payments payroll_remittances payroll_employee_profiles employment_terms hr_policy_versions"],
+  ["hr_attendance","出勤請假與額度","all","hr_attendance hr_leave_requests hr_leave_balances hr_calendar"],
+  ["production_jobs","製造工單與在製成本","stock","production_jobs production_materials production_operations production_capacity_slots subcontract_custody"],
+  ["production_routes","工藝路線與產能","masters","production_routes work_centers work_center_calendar"],
+  ["mrp_plans","物料需求規劃","buy","mrp_plans mrp_outputs"],
+  ["foreign_accounts","外幣帳款與評價","finance","foreign_accounts foreign_account_lines fx_settlements fx_valuations fx_valuation_lines fx_rates fx_currencies"],
+  ["document_outbox","文件預設與電子寄送","sell","document_defaults document_outbox partner_document_preferences"],
+  ["storage_bins","儲位與上架補揀","stock","storage_bins bin_balances bin_moves putaway_rules bin_replenishment warehouse_controls"],
+  ["warehouse_waves","儲位波次出貨","stock","warehouse_waves warehouse_wave_lines bin_reservations"],
   ["vendor_bills","供應商請款與三方核對","finance","vendor_bills vendor_bill_lines vendor_bill_links vendor_bill_events"],
   ["quality_specs","品質檢驗規格","admin","quality_specs"],
   ["quality_inspections","品質檢驗與放行","stock","quality_inspections quality_inspection_lines quality_events quality_releases"],
@@ -203,6 +212,9 @@ export const scopeCatalog = {
   none: "無資料",
 };
 const excluded = new Set([
+  "fx_currencies",
+  "hr_policy_versions",
+  "hr_calendar",
   "users",
   "sessions",
   "settings",
@@ -461,6 +473,8 @@ export class AccessControl {
       const source=`FROM main.vendor_bill_lines vb JOIN main.fulfilment_lines fl ON fl.id=vb.receipt_line_id JOIN main.fulfilments f ON f.id=fl.fulfilment_id JOIN main.documents d ON d.id=f.document_id JOIN main.document_lines dl ON dl.id=fl.document_line_id WHERE vb.bill_id=${col('id')}`;
       return `EXISTS(SELECT 1 ${source}) AND NOT EXISTS(SELECT 1 ${source} AND ${field} NOT IN (${quoted}))`;
     }
+    if(kind==='owner'&&['hr_attendance','hr_leave_requests','hr_leave_balances','employment_terms','payroll_employee_profiles','payroll_lines'].includes(table))return `${col('employee_id')} IN (SELECT id FROM main.employees WHERE user_id IN (${quoted}))`;
+    if(kind==='owner'&&table==='payroll_runs')return `EXISTS(SELECT 1 FROM main.payroll_lines pl JOIN main.employees em ON em.id=pl.employee_id WHERE pl.run_id=${col('id')} AND em.user_id IN (${quoted}))`;
     if (kind === "owner") {
       if (
         [

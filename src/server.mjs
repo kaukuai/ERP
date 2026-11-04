@@ -20,6 +20,8 @@ const app=createApplication({dbPath,demo,port,secureCookie:process.env.ERP_SECUR
 const server=http.createServer(app.handler);
 server.requestTimeout=30000;server.headersTimeout=15000;
 server.listen(port,host,()=>{console.log(`ERP ${demo?'（獨立示範資料庫）':''}\nLocal: http://${host==='::1'?'[::1]':host}:${port}\nDatabase: ${dbPath}\n以 Ctrl+C 停止服務。`);if(process.send)process.send({type:'ready',port});});
-let stopping=false;const stop=()=>{if(stopping)return;stopping=true;server.close(()=>{app.close();release();process.exit(0);});};
+let deliveryTask=null;
+const deliveryTimer=setInterval(()=>{if(deliveryTask)return;deliveryTask=app.deliveries().catch(()=>console.error('ERP 郵件背景作業失敗，請查核寄送紀錄與設定')).finally(()=>{deliveryTask=null;});},30000);deliveryTimer.unref();
+let stopping=false;const stop=()=>{if(stopping)return;stopping=true;clearInterval(deliveryTimer);app.stopDeliveries();server.close(async()=>{if(deliveryTask)await deliveryTask;app.close();release();process.exit(0);});};
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,stop);
 if(process.send)process.on('disconnect',stop);

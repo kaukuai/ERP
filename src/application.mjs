@@ -20,6 +20,8 @@ import { FulfilmentBatches } from './fulfilment-batches.mjs';
 import { MonthlyBilling } from './billing.mjs';
 import { CompletionWorkflows } from './completion-workflows.mjs';
 import { WorkflowHub } from './workflow-hub.mjs';
+import { processDelivery } from './document-delivery.mjs';
+import { smtpSend } from './smtp-transport.mjs';
 import { Companies,companyContext,companyProxy } from './companies.mjs';
 import { appVersion,allowedHostnames,requestSite,secretMatches,validateSecret } from './deployment.mjs';
 
@@ -30,6 +32,7 @@ const companies=new Companies(defaultErp,dbPath);
 const finance=new Finance(erp),trade=new Trade(erp),operations=new Operations(erp);
 const fulfilmentBatches=new FulfilmentBatches(erp),monthlyBilling=new MonthlyBilling(erp);
 const workflowHub=new WorkflowHub(erp),completion=new CompletionWorkflows(erp);
+workflowHub.enterprise.delivery.disabled=demo||ephemeralDemo;
 if(ephemeralDemo&&!defaultErp.get('SELECT id FROM pos_stores LIMIT 1')){
   const cash=finance.saveBank(demoUser,{code:'WEB-DEMO-CASH',name:'展示收銀現金',kind:'cash',opening_balance:'1000'}),bank=finance.saveBank(demoUser,{code:'WEB-DEMO-BANK',name:'展示收款帳戶',kind:'bank'});
   workflowHub.pos.saveStore(demoUser,{code:'DEMO-SHOP',name:'展示門市',warehouse_id:1,customer_id:1,cash_account_id:cash.id,bank_account_id:bank.id,scanner_mode:'keyboard',receipt_width:80,payment_provider:'manual',user_ids:[demoUser.id]});
@@ -83,7 +86,7 @@ async function handle(req,res){
     const u=erp.get('SELECT * FROM users WHERE username=? AND active=1',String(b.username||'').slice(0,50));
     const dummy='00000000000000000000000000000000:'+('00'.repeat(64));if(!verifyPassword(b.password,u?.password||dummy)||!u)fail('帳號或密碼不正確',401);attempts.delete(key);erp.log(u,'login','user',u.id);return createSession(res,erp.user(u.id));
   }
-  if(method==='GET'&&['/','/index.html','/app.js','/controls-ui.js','/governance-ui.js','/form-model.js','/forms-ui.js','/forms.css','/demo-client.js','/demo-print.js','/completion-ui.js','/access-ui.js','/master-imports-ui.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
+  if(method==='GET'&&['/','/index.html','/app.js','/enterprise-ui.js','/enterprise.css','/controls-ui.js','/governance-ui.js','/form-model.js','/forms-ui.js','/forms.css','/demo-client.js','/demo-print.js','/completion-ui.js','/access-ui.js','/master-imports-ui.js','/finance-ui.js','/operations-ui.js','/workflows-ui.js','/workflows-extra-ui.js','/workflow-finance-ui.js','/workflow-stock-invoice-ui.js','/workflow-company-ui.js','/workflow-service-pos-ui.js','/style.css','/print.js','/favicon.svg'].includes(path)){
     if(path==='/print.js'){res.writeHead(200,{...security,'Content-Type':'text/javascript; charset=utf-8'});return res.end("document.getElementById('print').addEventListener('click',()=>window.print());");}
     const name=path==='/'?'index.html':path.slice(1),type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.svg')?'image/svg+xml':'text/html';res.writeHead(200,{...security,'Content-Type':type+'; charset=utf-8'});return res.end(readFileSync(resolve(root,'public',name)));
   }
@@ -216,5 +219,6 @@ async function handle(req,res){
  }
 }
 const handler=(req,res)=>{try{const url=new URL(req.url,'http://localhost'),header=req.headers['x-erp-company'],query=url.searchParams.get('company');if(header&&query&&header!==query)fail('公司帳套選擇不一致',400);const context=companies.resolve(String(header||query||'default'));return companyContext.run(context,()=>handle(req,res));}catch(error){json(res,{error:error instanceof DomainError?error.message:'公司帳套載入失敗'},error instanceof DomainError?error.status:500);}};
-return {handler,close(){companies.close();defaultErp.close();}};
+let deliveryStopped=false;
+return {handler,stopDeliveries(){deliveryStopped=true;},async deliveries(){if(demo||ephemeralDemo||deliveryStopped)return;for(const row of companies.list()){if(deliveryStopped)break;const e=companies.resolve(row.slug).erp,prefix='ERP_MAIL_'+row.slug.replaceAll('-','_').toUpperCase()+'_',env={...process.env};for(const key of ['HOST','PORT','TLS','USER','PASSWORD'])if(process.env[prefix+key]!==undefined)env['ERP_MAIL_'+key]=process.env[prefix+key];if(env.ERP_MAIL_HOST)await processDelivery(e,m=>smtpSend(m,env));}},close(){deliveryStopped=true;companies.close();defaultErp.close();}};
 }

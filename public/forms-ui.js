@@ -495,6 +495,8 @@ async function formsAction(action, id) {
           t.allowed?.print &&
           S.data.form_permissions.print,
       );
+    const preset=await api('/api/enterprise/delivery/resolve?document_id='+doc.id);
+    if(preset.template_id){const chosen=ts.find(t=>t.id===preset.template_id);if(chosen)ts.splice(ts.indexOf(chosen),1),ts.unshift({...chosen,name:'預設 · '+chosen.name+' ('+preset.locale+')'});}
     modal(
       "選擇列印版型",
       ts.length
