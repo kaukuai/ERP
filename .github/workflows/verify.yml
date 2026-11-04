@@ -28,7 +28,7 @@ jobs:
   browser:
     name: Browser forms, approvals and layout
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
