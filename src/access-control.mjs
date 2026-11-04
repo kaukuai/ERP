@@ -18,6 +18,8 @@ const actions = {
   print: "列印",
 };
 const defs = [
+  ["form_templates", "表單版型設計", "admin", "form_templates form_template_versions"],
+  ["form_entries", "表單填寫紀錄", "forms", "form_entries form_entry_events"],
   [
     "partners",
     "往來對象",
@@ -144,6 +146,7 @@ const tableResource = new Map(
   ),
 );
 const baseAccess = {
+  forms: ["admin", "manager", "sales", "warehouse", "finance"],
   masters: ["admin", "manager"],
   partners: ["admin", "manager", "sales"],
   sell: ["admin", "manager", "sales"],
@@ -377,7 +380,7 @@ export class AccessControl {
           {
             effect: "allow",
             scope:
-              p.user.role === "sales" &&
+              (r === "form_entries" && !["admin", "manager"].includes(p.user.role)) || p.user.role === "sales" &&
               [
                 "quotes",
                 "orders",

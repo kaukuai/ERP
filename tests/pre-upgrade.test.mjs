@@ -1,3 +1,4 @@
+import { schemaVersion } from '../src/schema-version.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -17,7 +18,7 @@ test('upgrade backup validates the root and every company on copies while leavin
   const childEnv={...process.env};delete childEnv.NODE_TEST_CONTEXT;
   const result=spawnSync(process.execPath,['scripts/pre-upgrade.mjs','--db',path,'--all-companies'],{cwd:new URL('..',import.meta.url),encoding:'utf8',env:childEnv});
   assert.ifError(result.error);assert.equal(result.status,0,result.stderr);assert.ok(result.stdout.trim(),'CLI must report its completed backups');const report=JSON.parse(result.stdout);assert.equal(report.databases.length,2);
-  for(const database of report.databases){assert.equal(database.schema,'14');assert.equal(database.existing_rows_preserved,true);assert.equal(database.integrity,true);assert.ok(existsSync(database.backup));const metadata=JSON.parse(readFileSync(database.backup+'.json','utf8'));assert.equal(metadata.existing_rows_preserved,true);}
+  for(const database of report.databases){assert.equal(database.schema,String(schemaVersion));assert.equal(database.existing_rows_preserved,true);assert.equal(database.integrity,true);assert.ok(existsSync(database.backup));const metadata=JSON.parse(readFileSync(database.backup+'.json','utf8'));assert.equal(metadata.existing_rows_preserved,true);}
   assert.equal(JSON.stringify(e.settings()),before);assert.equal(JSON.stringify(branch.all('SELECT * FROM partners')),branchBefore);
 });
 test('opening a newer schema fails before any old schema tables or journal-mode changes are written',t=>{

@@ -14,6 +14,7 @@ import { migrateV10 } from './migrate-v10.mjs';
 import { migrateV11 } from './migrate-v11.mjs';
 import { migrateV12 } from './migrate-v12.mjs';
 import { migrateV14 } from './migrate-v14.mjs';
+import { migrateV15 } from './migrate-v15.mjs';
 import { migrateV13 } from './migrate-v13.mjs';
 import { AccessControl,accessContext,detailedHas,legacySales } from './access-control.mjs';
 import { schemaVersion } from './schema-version.mjs';
@@ -67,7 +68,7 @@ export class ERP {
     this.db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').run('schema_version','1');
     const accounts=[['1000','銀行及現金','asset'],['1100','應收帳款','asset'],['1200','存貨','asset'],['1250','借出存貨','asset'],['1300','進項稅額','asset'],['2000','應付帳款','liability'],['2100','銷項稅額','liability'],['2200','借入存貨義務','liability'],['3000','期初權益','equity'],['4000','銷貨收入','revenue'],['5000','銷貨成本','expense'],['5100','存貨調整損益','expense']];
     for(const a of accounts) this.db.prepare('INSERT OR IGNORE INTO accounts VALUES(?,?,?)').run(...a);
-    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);migrateV13(this.db);migrateV14(this.db);this.access=new AccessControl(this);
+    migrateV2(this.db);migrateV3(this.db);migrateV4(this.db);migrateV5(this.db);migrateV6(this.db);migrateV7(this.db);migrateV8(this.db);migrateV9(this.db);migrateV10(this.db);migrateV11(this.db);migrateV12(this.db);migrateV13(this.db);migrateV14(this.db);migrateV15(this.db);this.access=new AccessControl(this);
     }catch(error){this.db.close();throw error;}
   }
   close(){this.db.close();}

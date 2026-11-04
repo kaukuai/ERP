@@ -1,7 +1,8 @@
 (() => {
   const nativeFetch=window.fetch.bind(window),storageKey='erp-web-demo-v1';let queue=Promise.resolve();
   const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  window.erpImageAttrs=path=>(window.ERP_DEMO_MODE?'data-demo-image':'src')+'="'+escape(path)+'"';
+  window.erpCompanyPath=path=>{const url=new URL(path,location.origin);url.searchParams.set('company',sessionStorage.getItem('cheng-company')||'default');return url.pathname+url.search;};
+  window.erpImageAttrs=path=>(window.ERP_DEMO_MODE?'data-demo-image':'src')+'="'+escape(window.erpCompanyPath(path))+'"';
   window.resetWebDemo=()=>{sessionStorage.removeItem(storageKey);sessionStorage.removeItem('cheng-company');location.assign('/');};
   window.fetch=(input,options={})=>{
     const url=new URL(input instanceof Request?input.url:String(input),location.href);

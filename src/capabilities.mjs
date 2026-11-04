@@ -1,3 +1,4 @@
+import { expandedAudit } from './review-catalog.mjs';
 // Independent requirements distilled from the vendor manual, not copied instructions.
 // A row marked usable covers its acceptance statement only, never an entire chapter.
 export const manualSource={title:'數碼一號－進銷存系統操作手冊',pages:418,url:'https://www.hotzsoft.com/Data/S2021030001-X8QRZDSV/file/%E6%95%B8%E7%A2%BC%E4%B8%80%E8%99%9F-%E9%80%B2%E9%8A%B7%E5%AD%98%E7%B3%BB%E7%B5%B1%E6%93%8D%E4%BD%9C%E6%89%8B%E5%86%8A.pdf',reference:'https://www.scribd.com/document/982017657/數碼一號-進銷存系統操作手冊',note:'頁碼以原廠公開 PDF 為準。比對功能行為；不複製廠商程式、版面或操作文字。'};
@@ -128,4 +129,4 @@ const groups=[
  ['X10','完整 POS 促銷與會員','原廠現行功能頁擴充',"partial","已具可設定門市／收銀權限、鍵盤掃碼、收據紙、跨門市會員點數、逐列擇優促銷、混合實收／找零、班別核對與退貨點數回復；實體設備、發票與金流 API 整合及真實成功回執仍待服務商與實機驗證。","services-pos.test.mjs"]]]
 ];
 export const capabilities=groups.flatMap(([group,rows])=>rows.map(([id,name,pages,status,acceptance,evidence=''])=>({id,group,name,pages,status,acceptance,evidence,priority:status==='usable'?'驗收保持':group==='電商與物流'||group==='發票'?'P2 外部整合':'P1 核心補齊'})));
-export const capabilityAudit=()=>({source:manualSource,version:'0.5.0',statusLabels:{usable:'可操作（依驗收範圍）',partial:'部分具備',missing:'待建置',external:'需外部整合'},summary:capabilities.reduce((s,r)=>(s[r.status]++,s),{usable:0,partial:0,missing:0,external:0}),rows:capabilities,warning:'未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。'});
+export const capabilityAudit=()=>({source:manualSource,version:'0.6.0',expanded:expandedAudit(),statusLabels:{usable:'可操作（依驗收範圍）',partial:'部分具備',missing:'待建置',external:'需外部整合'},summary:capabilities.reduce((s,r)=>(s[r.status]++,s),{usable:0,partial:0,missing:0,external:0}),rows:capabilities,warning:'本次另有 16 項加細查核，包含尚待建置的簽核、品管、多幣別等；原 115 項並非完整手冊功能總數。未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。'});

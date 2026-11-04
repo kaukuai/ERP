@@ -1,3 +1,4 @@
+import { Forms } from './forms.mjs';
 import { OrderWorkflows } from './order-workflows.mjs';
 import { SkuOrders } from './sku-orders.mjs';
 import { CustomReports } from './custom-reports.mjs';
@@ -10,9 +11,10 @@ import { POS } from './pos.mjs';
 import { MasterImports } from './master-imports.mjs';
 
 export class WorkflowHub {
-  constructor(e){this.orders=new OrderWorkflows(e);this.imports=new SkuOrders(e);this.reports=new CustomReports(e);this.finance=new FinanceWorkflows(e);this.bills=new BillWorkflows(e);this.inventory=new InventoryTracking(e);this.invoices=new InvoiceWorkflows(e);this.services=new ServiceWorkflows(e);this.pos=new POS(e);this.masters=new MasterImports(e);}
-  data(u){return {...this.orders.data(u),...this.imports.data(u),...this.reports.data(u),...this.finance.data(u),...this.bills.data(u),...this.inventory.data(u),...this.invoices.data(u),...this.services.data(u),...this.pos.data(u),...this.masters.data(u)};}
+  constructor(e){this.forms=new Forms(e);this.orders=new OrderWorkflows(e);this.imports=new SkuOrders(e);this.reports=new CustomReports(e);this.finance=new FinanceWorkflows(e);this.bills=new BillWorkflows(e);this.inventory=new InventoryTracking(e);this.invoices=new InvoiceWorkflows(e);this.services=new ServiceWorkflows(e);this.pos=new POS(e);this.masters=new MasterImports(e);}
+  data(u){return {...this.forms.data(u),...this.orders.data(u),...this.imports.data(u),...this.reports.data(u),...this.finance.data(u),...this.bills.data(u),...this.inventory.data(u),...this.invoices.data(u),...this.services.data(u),...this.pos.data(u),...this.masters.data(u)};}
   get(u,path,query){
+    const form=this.forms.get(u,path);if(form!==undefined)return form;
     const id=path.split('/')[3];
     if(/^\/api\/expense-allocations\/\d+$/.test(path))return this.finance.allocation(u,id);
     if(/^\/api\/repairs\/\d+$/.test(path))return this.services.repair(u,id);
@@ -25,8 +27,9 @@ export class WorkflowHub {
     if(/^\/api\/subscriptions\/\d+$/.test(path))return this.orders.plan(u,id);
     if(/^\/api\/custom-reports\/\d+$/.test(path))return this.reports.run(u,id,query);
   }
-  print(u,path,query){if(/^\/print\/expense-allocations\/\d+$/.test(path))return this.finance.printAllocation(u,path.split('/')[3]);if(/^\/print\/pos-sales\/\d+$/.test(path))return this.pos.receipt(u,path.split('/')[3]);if(/^\/print\/(repairs|service-contracts)\/\d+$/.test(path))return this.services.print(u,path.split('/')[2],path.split('/')[3]);if(/^\/print\/invoice-profiles\/\d+$/.test(path))return this.invoices.proof(u,path.split('/')[3]);if(/^\/print\/custom-reports\/\d+$/.test(path))return this.reports.print(u,path.split('/')[3],query);}
+  print(u,path,query){const form=this.forms.print(u,path,query);if(form!==undefined)return form;if(/^\/print\/expense-allocations\/\d+$/.test(path))return this.finance.printAllocation(u,path.split('/')[3]);if(/^\/print\/pos-sales\/\d+$/.test(path))return this.pos.receipt(u,path.split('/')[3]);if(/^\/print\/(repairs|service-contracts)\/\d+$/.test(path))return this.services.print(u,path.split('/')[2],path.split('/')[3]);if(/^\/print\/invoice-profiles\/\d+$/.test(path))return this.invoices.proof(u,path.split('/')[3]);if(/^\/print\/custom-reports\/\d+$/.test(path))return this.reports.print(u,path.split('/')[3],query);}
   post(u,path,b){
+    const form=this.forms.post(u,path,b);if(form!==undefined)return form;
     const id=path.split('/')[3];
     if(path==='/api/master-import-templates')return this.masters.save(u,b);
     if(path==='/api/master-imports/preview')return this.masters.preview(u,b);

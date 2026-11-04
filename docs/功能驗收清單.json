@@ -6,7 +6,147 @@
     "reference": "https://www.scribd.com/document/982017657/數碼一號-進銷存系統操作手冊",
     "note": "頁碼以原廠公開 PDF 為準。比對功能行為；不複製廠商程式、版面或操作文字。"
   },
-  "version": "0.5.0",
+  "version": "0.6.0",
+  "expanded": {
+    "checked_at": "2026-11-03",
+    "note": "原 115 項只涵蓋既定驗收；下列為附件需求及重新拆細的手冊／其他產品差距，不可用原清單待建置為零宣稱全功能對等。",
+    "rows": [
+      {
+        "id": "D01",
+        "name": "可編排列印版型",
+        "status": "usable",
+        "source": "使用者提供的 15 份表單",
+        "acceptance": "11 個通用起始版型；拖曳／上下排序、12 欄寬度、文字、圖片、留白、簽核區、明細、A4／A5／Letter／自訂紙型與分頁。",
+        "evidence": "forms.test.mjs、browser-forms.cjs"
+      },
+      {
+        "id": "D02",
+        "name": "表單填寫與歷史版型保存",
+        "status": "usable",
+        "source": "使用者提供的日報、案件、週計畫、車輛月報",
+        "acceptance": "型別／必填驗證、草稿、送出鎖定、取消原因、修訂與不可覆寫事件；公司及版型快照、列印、JSON 版型匯出入、帳套隔離。",
+        "evidence": "forms.test.mjs、forms-http.test.mjs"
+      },
+      {
+        "id": "M01",
+        "name": "可逾期打單日數",
+        "status": "missing",
+        "source": "指定手冊 PDF 第 6 頁",
+        "acceptance": "已有結帳日限制；尚無可設定「距今天最多幾天」的補打單期限。",
+        "evidence": "core.mjs：checkPeriod"
+      },
+      {
+        "id": "M02",
+        "name": "各金額類欄位與日期格式",
+        "status": "partial",
+        "source": "指定手冊 PDF 第 6 頁",
+        "acceptance": "已有每人數量／金額顯示；單價、成本、稅額各自精度與全系統日期格式尚未分開設定。",
+        "evidence": "completion-workflows.mjs：preferences"
+      },
+      {
+        "id": "M03",
+        "name": "全部模組欄位與數量遮蔽",
+        "status": "partial",
+        "source": "指定手冊 PDF 第 73–74 頁",
+        "acceptance": "已具常用聯絡、價格等欄位與資料範圍權限；尚非每模組所有欄位可逐欄設定，數量總開關也未實作。",
+        "evidence": "access-control.mjs：privacyFields"
+      },
+      {
+        "id": "M04",
+        "name": "逐人逐一報表格式授權",
+        "status": "partial",
+        "source": "指定手冊 PDF 第 75–78 頁",
+        "acceptance": "自訂報表有角色授權；新版表單有功能動作及擁有人資料範圍。尚無每位使用者對每個特定版型的獨立允許／拒絕矩陣。",
+        "evidence": "custom-reports.mjs、forms.mjs"
+      },
+      {
+        "id": "M05",
+        "name": "群組及贈品的專用欄位",
+        "status": "partial",
+        "source": "指定手冊 PDF 第 108、113、128、148 頁；國內採購操作文件",
+        "acceptance": "有零元明細、組合銷售展開及 BOM 快照；尚未以專用贈品旗標及完整母子群組在所有交易與報表中呈現。",
+        "evidence": "trade.mjs、completion-workflows.mjs"
+      },
+      {
+        "id": "M06",
+        "name": "月成本重跑與追溯規則完全對等",
+        "status": "partial",
+        "source": "指定手冊 PDF 第 351–357 頁",
+        "acceptance": "已有標準及基本月加權；複合來源會阻擋。原手冊月底指定單位成本及重新月結的完整語義未等同實作，不可當作已對等。",
+        "evidence": "costing.mjs"
+      },
+      {
+        "id": "V01",
+        "name": "條件式多階簽核與代理",
+        "status": "missing",
+        "source": "Odoo Studio Approval rules；ERPNext Workflows；Business Central Approval workflows",
+        "acceptance": "現有主管核准及組織權限不等於金額門檻、循序／會簽、代理及排除同人多階的簽核引擎。",
+        "evidence": "core.mjs：transition；access-control.mjs"
+      },
+      {
+        "id": "V02",
+        "name": "獨立供應商請款與三方核對",
+        "status": "missing",
+        "source": "Odoo Purchase：Control and know when vendor bills should be paid",
+        "acceptance": "有採購、收貨及應付來源連動；尚無獨立廠商發票對採購／驗收的差異容忍與付款管制工作流。",
+        "evidence": "trade.mjs、billing.mjs"
+      },
+      {
+        "id": "V03",
+        "name": "品質檢驗與放行",
+        "status": "missing",
+        "source": "ERPNext Quality Inspection",
+        "acceptance": "尚無抽樣量、數值／非數值檢驗規格、檢驗判定、待驗隔離及檢驗完成才准收出貨的流程。通用表單不能代替它。",
+        "evidence": "inventory-tracking.mjs、forms.mjs"
+      },
+      {
+        "id": "V04",
+        "name": "儲位、上架策略與波次",
+        "status": "missing",
+        "source": "Business Central：Design details—Warehouse management",
+        "acceptance": "有多倉、在途調撥、揀貨、批號序號及盤點區域；尚無儲位庫存台帳、規則上架及完整波次／補揀策略。",
+        "evidence": "operations.mjs、inventory-tracking.mjs"
+      },
+      {
+        "id": "V05",
+        "name": "多幣別會計與匯率評價",
+        "status": "missing",
+        "source": "ERPNext Multi Currency Accounting",
+        "acceptance": "目前交易以 TWD 計價；缺原幣／本位幣雙金額、匯率來源、期末評價及已實現／未實現匯兌。",
+        "evidence": "core.mjs、finance.mjs"
+      },
+      {
+        "id": "V06",
+        "name": "進階文件排版與原生 Office 版型",
+        "status": "partial",
+        "source": "Odoo Studio PDF reports；ERPNext Print Format Builder；Business Central Report layouts",
+        "acceptance": "已具安全區塊設計與動態交易明細；尚無 Word／Excel 原檔版型匯入、任意合併儲存格、條件區塊、公式、巢狀分組與多層小計。",
+        "evidence": "form-model.js、forms-ui.js"
+      },
+      {
+        "id": "V07",
+        "name": "客戶／語系預設版型與電子寄送",
+        "status": "missing",
+        "source": "Business Central Report layouts：customer/vendor document layouts",
+        "acceptance": "可由使用者逐次選版型；尚無依客戶／語系自動套版、附件及背景電子郵件寄送工作流。",
+        "evidence": "forms.mjs"
+      },
+      {
+        "id": "V08",
+        "name": "完整人資薪資與製造排程",
+        "status": "missing",
+        "source": "ERPNext User Manual 模組索引；Odoo Inventory and MRP 文件索引",
+        "acceptance": "有員工目錄及簡單 BOM 組拆裝；尚非完整出勤薪資、法定扣繳、MRP、工藝路線、產能與委外製程。列為擴大比較範圍，不宣稱已具備。",
+        "evidence": "finance.mjs、core.mjs"
+      }
+    ],
+    "summary": {
+      "usable": 2,
+      "partial": 6,
+      "missing": 8,
+      "external": 0
+    }
+  },
   "statusLabels": {
     "usable": "可操作（依驗收範圍）",
     "partial": "部分具備",
@@ -1171,5 +1311,5 @@
       "priority": "P1 核心補齊"
     }
   ],
-  "warning": "未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。"
+  "warning": "本次另有 16 項加細查核，包含尚待建置的簽核、品管、多幣別等；原 115 項並非完整手冊功能總數。未達全功能對等，清單亦不能替代真實資料、設備及多人上線驗收。未標示的製造流程依公司不自製需求不列優先。"
 }

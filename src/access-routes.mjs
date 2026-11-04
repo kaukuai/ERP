@@ -1,6 +1,10 @@
 import { accessPolicy, accessContext } from "./access-control.mjs";
 import { fail, integer } from "./core.mjs";
 const routes = {
+  "forms": ["form_templates", null],
+  "form-templates": ["form_templates", "form_templates"],
+  "form-entries": ["form_entries", "form_entries"],
+  "form-preview": ["form_templates", "form_templates"],
   partners: ["partners", "partners"],
   contacts: ["partners", "partner_contacts"],
   addresses: ["partners", "partner_addresses"],
@@ -114,6 +118,9 @@ const completionRoutes = {
   "cost-batch": ["products", null],
 };
 const bodyIdRoutes = new Set([
+  "form-preview",
+  "form-templates",
+  "form-entries",
   "partners",
   "products",
   "product-units",
@@ -371,6 +378,8 @@ export function guardRequest(e, u, path, method, b = {}, query = {}) {
       fail("新增資料不在授權範圍", 403);
   }
   e.access.checkFields(p, d.resource, b, d.table, d.id);
+  if (/^\/api\/(form-templates|form-entries|form-preview)(?:\/|$)/.test(path)) return;
+  // Form definitions and values have independently validated keys; linked document preview checks its source explicitly.
   // Foreign ids are checked without filtering the stock/credit calculations used by posting.
   const walk = (v, depth = 0) => {
     if (depth > 12) fail("資料層級過深");
